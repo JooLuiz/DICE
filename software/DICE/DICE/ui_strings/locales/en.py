@@ -120,6 +120,12 @@ EN_STRINGS: dict[str, str] = {
         "If you haven't been redirected in 10 seconds, please click this button."
     ),
     'redirect_continue': 'Continue',
+    'redirect_fallback_instructions': (
+        'If automatic redirection is not available on your questionnaire platform, complete it '
+        'and click "I completed the questionnaire" to continue.'
+    ),
+    'redirect_open_questionnaire': 'Open questionnaire',
+    'redirect_manual_complete': 'I completed the questionnaire',
     # Study flow — debrief
     'debrief_thanks': 'Thank you!',
     'debrief_appreciation': 'Your participation is greatly appreciated.',

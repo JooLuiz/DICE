@@ -1,12 +1,21 @@
 from otree.api import *
-import pandas as pd
-import numpy as np
-import re
-import os
-import random
-import httplib2
-import itertools
 
+from .feed_data import prepare_feed_for_round
+from .journey_config import (
+    get_or_create_journey_steps,
+    get_step_config_for_round,
+    is_active_round,
+    is_last_active_round,
+)
+from .questionnaire_bridge import (
+    bridge_js_vars,
+    build_survey_link,
+    callback_is_valid,
+    mark_step_completion,
+    update_prolific_completion_url,
+)
+from .questionnaire_models import feed_round_export_suffix, questionnaire_response_export_rows
+from .pages_questionnaire import E_Questionnaire
 from .ui_strings import (
     get_consent_default_template,
     get_debrief_context,
@@ -15,16 +24,15 @@ from .ui_strings import (
 )
 
 
-
 doc = """
 Mimic social media feeds with DICE.
 """
 
 
 class C(BaseConstants):
-    NAME_IN_URL = 'DICE'
+    NAME_IN_URL = "DICE"
     PLAYERS_PER_GROUP = None
-    NUM_ROUNDS = 1
+    NUM_ROUNDS = 20
 
     RULES_TEMPLATE = "DICE/T_Rules.html"
     CONSENT_TEMPLATE = "DICE/T_Consent.html"
@@ -41,378 +49,311 @@ class C(BaseConstants):
     ITEM_INSTA = "DICE/T_Item_Insta.html"
     ITEM_STORIES = "DICE/T_Item_Stories.html"
 
+
 class Subsession(BaseSubsession):
-    feed_conditions = models.StringField(doc='indicates the feed condition a player is randomly assigned to')
-    FEED = models.StringField(doc='')
+    feed_conditions = models.StringField(doc="indicates the feed condition a player is randomly assigned to")
+    FEED = models.StringField(doc="")
+
 
 class Group(BaseGroup):
     pass
 
 
 class Player(BasePlayer):
-    # ad_condition = models.StringField(doc='indicates the ad condition a player is randomly assigned to')
-    feed_condition = models.StringField(doc='indicates the feed condition a player is randomly assigned to')
-    sequence = models.StringField(doc='prints the sequence of tweets based on doc_id')
+    feed_condition = models.StringField(doc="indicates the feed condition a player is randomly assigned to")
+    sequence = models.StringField(doc="prints the sequence of tweets based on doc_id")
+    step_id = models.StringField(doc="configured journey step id", blank=True)
 
-    # cta = models.BooleanField(doc='indicates whether CTA was clicked or not')
-    scroll_sequence = models.LongStringField(doc='tracks the sequence of feed items a participant scrolled through.')
-    viewport_data = models.LongStringField(doc='tracks the time feed items were visible in a participants viewport.')
-    rowheight_data = models.LongStringField(doc='tracks the time feed items were visible in a participants viewport.')
-    likes_data = models.LongStringField(doc='tracks likes.', blank=True)
-    replies_data = models.LongStringField(doc='tracks replies.', blank=True)
+    scroll_sequence = models.LongStringField(doc="tracks the sequence of feed items a participant scrolled through.")
+    viewport_data = models.LongStringField(doc="tracks the time feed items were visible in a participants viewport.")
+    rowheight_data = models.LongStringField(doc="tracks the time feed items were visible in a participants viewport.")
+    likes_data = models.LongStringField(doc="tracks likes.", blank=True)
+    replies_data = models.LongStringField(doc="tracks replies.", blank=True)
     # New sessions require `otree resetdb` after adding this field.
-    reposts_data = models.LongStringField(doc='tracks reposts.', blank=True)
-    promoted_post_clicks = models.LongStringField(doc='tracks the clicks on sponsored posts.', blank=True)
+    reposts_data = models.LongStringField(doc="tracks reposts.", blank=True)
+    promoted_post_clicks = models.LongStringField(doc="tracks the clicks on sponsored posts.", blank=True)
+
+    touch_capability = models.BooleanField(
+        doc="indicates whether a participant uses a touch device to access survey.",
+        blank=True,
+    )
+    device_type = models.StringField(
+        doc="indicates the participant's device type based on screen width.",
+        blank=True,
+    )
+    screen_resolution = models.StringField(
+        doc="indicates the participant's screen resolution, i.e., width x height.",
+        blank=True,
+    )
+
+    questionnaire_completion_mode = models.StringField(doc="auto callback vs manual questionnaire completion", blank=True)
+    callback_step_id = models.StringField(doc="callback step id returned by survey platform", blank=True)
+    callback_token = models.StringField(doc="callback token returned by survey platform", blank=True)
+    callback_received = models.StringField(doc="flag indicating whether callback parameters were returned", blank=True)
+    callback_valid = models.BooleanField(doc="callback token validation result", blank=True)
+
+    questionnaire_answers_json = models.LongStringField(
+        doc="JSON-encoded answers submitted on the in-system questionnaire page (E_Questionnaire).",
+        blank=True,
+    )
 
 
-    touch_capability = models.BooleanField(doc="indicates whether a participant uses a touch device to access survey.",
-                                           blank=True)
-    device_type = models.StringField(doc="indicates the participant's device type based on screen width.",
-                                           blank=True)
-    screen_resolution = models.StringField(doc="indicates the participant's screen resolution, i.e., width x height.",
-                                           blank=True)
-
+def _step_config(player: Player):
+    return get_step_config_for_round(
+        session=player.session,
+        round_number=player.round_number,
+        max_supported_steps=C.NUM_ROUNDS,
+    )
 
 
 # FUNCTIONS -----
-def creating_session(subsession):
-    subsession.FEED = "DICE/T_Feed_" + subsession.session.config['channel_type'] + ".html"
-
-    # Load and preprocess data once but shuffle and assign for each player
-    df = read_feed(path=subsession.session.config['data_path'], delim=subsession.session.config['delimiter'])
-    processed_tweets = preprocessing(df, subsession.session.config)
-
-    # Check if the file contains any conditions and assign groups to it
-    condition = subsession.session.config['condition_col']
-    if condition in processed_tweets.columns:
-        feed_conditions = itertools.cycle(processed_tweets[condition].unique())
-        subsession.feed_conditions = str(feed_conditions)
-
-    for player in subsession.get_players():
-        # Deep copy the DataFrame to ensure each player gets a unique shuffled version
-        tweets = processed_tweets.copy()
-
-        # Assign a condition to the player if conditions are present
-        if condition in tweets.columns:
-            player.feed_condition = next(feed_conditions)
-            tweets = tweets[tweets[condition] == player.feed_condition]
-
-        # Ensure the random number generator's seed is different for each player if needed
-        # np.random.seed()  # Optionally reset the seed for true randomness
-
-        # Initialize 'commented_post_exists' as False in case the column doesn't exist
-        commented_post_exists = False
-
-        # Only perform operations involving 'commented_post' if it exists in the DataFrame
-        if 'commented_post' in tweets.columns:
-            # Check for unique commented post
-            commented_post_exists = ((tweets['commented_post'] == 1) & (tweets["condition"] == player.feed_condition)).sum() == 1
-            if commented_post_exists == 1:
-                player.subsession.FEED = "DICE/T_Feed_" + subsession.session.config['channel_type'] + "_Replies.html"
-
-            # Set sequence to 1 for the row where commented_post is 1
-            tweets.loc[tweets['commented_post'] == 1, 'sequence'] = 1
-        else:
-            tweets['commented_post'] = 0
-
-        # Conditional update of sequence if there is a unique commented post and sequence is 1
-        tweets.loc[(tweets['sequence'] == 1) & (tweets['commented_post'] == 0), 'sequence'] = \
-            np.where(commented_post_exists, np.nan, 1)
-
-        # Generate ranks and exclude used ranks
-        ranks = np.arange(1, len(tweets) + 1)
-        available_ranks = ranks[~np.isin(ranks, tweets['sequence'].dropna())]
-
-        # Randomly sample available ranks to fill missing sequence values
-        np.random.shuffle(available_ranks)
-        missing_indices = tweets['sequence'].isnull()
-        tweets.loc[missing_indices, 'sequence'] = available_ranks[:sum(missing_indices)]
-
-        # Sort DataFrame by sequence
-        tweets.sort_values(by='sequence', inplace=True)
-        # Reset index after sorting to ensure clean sequential indices
-        tweets.reset_index(drop=True, inplace=True)
-
-        # Assign processed tweets to player-specific variable
-        player.participant.tweets = tweets
-
-        # Record the sequence for each player
-        player.sequence = ', '.join(map(str, tweets['doc_id'].tolist()))
-        # print(player.sequence)
-
-
-
-
-# make pictures (if any) visible
-def extract_first_url(text):
-    urls = re.findall(r"(?P<url>https?://[\S]+)", str(text))
-    if urls:
-        return urls[0]
-    return None
-
-# check urls
-# h = httplib2.Http()
-
-# function that reads data
-def read_feed(path, delim):
-    if re.match(r'^https?://\S+', path):
-        if 'github' in path:
-            tweets = pd.read_csv(path, sep = delim)
-        elif 'docs.google.com/spreadsheets' in path:
-            sheet_id = path.split('/d/')[1].split('/')[0]
-            gid = '0'
-            if 'gid=' in path:
-                gid = path.split('gid=')[1].split('&')[0].split('#')[0]
-            export_url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}'
-            tweets = pd.read_csv(export_url, sep=delim)
-        elif 'drive.google.com' in path:
-            if '/uc?' in path:
-                # Already in the correct format
-                tweets = pd.read_csv(path, sep = delim)
-            else:
-                # Convert from /file/d/ format
-                file_id = path.split('/')[-2]
-                download_url = f'https://drive.google.com/uc?id={file_id}'
-                tweets = pd.read_csv(download_url, sep = delim)
-        else:
-            raise ValueError("Unrecognized URL format")
-    else:
-        tweets = pd.read_csv(path, sep = delim)
-    return tweets
-
-# Function to check if a URL exists in the text
-def is_url(s):
-    return bool(re.match(r'^https?:\/\/', str(s)))
-
-# some pre-processing
-def preprocessing(df, config):
-    # reformat date — try European dot-style first to avoid day/month ambiguity, then fall back to pandas' flexible parser
-    df['datetime'] = pd.to_datetime(df['datetime'], errors='coerce', format='%d.%m.%y %H:%M')
-    mask = df['datetime'].isna()
-    if mask.any():
-        df.loc[mask, 'datetime'] = pd.to_datetime(
-            df.loc[mask, 'datetime'],
-            errors='coerce',
-        )
-    # fall back to current date for any remaining unparseable values
-    df['datetime'] = df['datetime'].fillna(pd.Timestamp.now())
-    df['date'] = df['datetime'].dt.strftime('%d %b').str.replace(' ', '. ')
-    df['date'] = df['date'].str.lstrip('0')
-    df['formatted_datetime'] = df['datetime'].dt.strftime('%I:%M %p · %b %d, %Y')
-
-    # highlight hashtags, cashtags, mentions, etc.
-    df['text'] = df['text'].str.replace(r'\B(\#[a-zA-Z0-9_]+\b)',
-                                                  r'<span class="text-primary">\g<0></span>', regex=True)
-    df['text'] = df['text'].str.replace(r'\B(\$[a-zA-Z0-9_\.]+\b)',
-                                                  r'<span class="text-primary">\g<0></span>', regex=True)
-    df['text'] = df['text'].str.replace(r'\B(\@[a-zA-Z0-9_]+\b)',
-                                                  r'<span class="text-primary">\g<0></span>', regex=True)
-    # remove the href below, if you don't want them to leave your page
-    df['text'] = df['text'].str.replace(
-        r'(http|ftp|https):\/\/([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])',
-        r'<a class="text-primary">\g<0></a>', regex=True)
-
-    # make numeric information integers and fill NAs with 0
-    df['replies'] = df['replies'].fillna(0).astype(int)
-    df['reposts'] = df['reposts'].fillna(0).astype(int)
-    df['likes'] = df['likes'].fillna(0).astype(int)
-
-    # df['media'] = df['media'].apply(extract_first_url)
-    df['media'] = df['media'].astype(str).str.replace("'|,", '', regex=True)
-    df['pic_available'] = np.where(df['media'].str.contains('http', na=False), True, False)
-    # print(df[['pic_available', 'media']])
-
-    # create a name icon as a profile pic
-    df['profile_pic_available'] = df['user_image'].apply(is_url)
-    df['icon'] = df['username'].str[:2].str.title()
-
-    # Assign a random color class from a predefined list
-    color_classes = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8']
-    df['color_class'] = np.random.choice(color_classes, size=len(df))
-
-    # make sure user descriptions do not entail any '' or "" as this complicates visualization
-    # also replace nan with some whitespace
-    df['user_description'] = df['user_description'].str.replace("'", '')
-    df['user_description'] = df['user_description'].str.replace('"', '')
-    df['user_description'] = df['user_description'].fillna(' ')
-
-    # make number of followers a formatted string
-    df['user_followers'] = df['user_followers'].map('{:,.0f}'.format).str.replace(',', '.')
-
-    # Check if 'condition_col' is set and not empty, and if it's an existing column in df
-    # looks like legacy code as I force people to have a condition col by now.
-    if ('condition_col' in config and
-            config['condition_col'] and
-            config['condition_col'] in df.columns):
-        # Rename the specified column to 'condition'
-        df.rename(columns={config['condition_col']: 'condition'}, inplace=True)
-
-    return df
-
-
-def create_redirect(player):
-    if player.participant.label:
-        link = player.session.config['survey_link'] + '?' + player.session.config['url_param'] + '=' + player.participant.label
-    else:
-        link = player.session.config['survey_link'] + '?' + player.session.config['url_param'] + '=' + player.participant.code
-
-    completion_code = None
-
-    # if 'prolific_completion_url' in player.session.config and player.session.config['prolific_completion_url'] is not None:
-        # completion_code = player.session.config['prolific_completion_url'][-8:]
-
-    if 'completion_code' in player.session.vars:
-        if player.session.vars['completion_code'] is not None:
-            link = link + '&' + 'cc=' + player.session.vars['completion_code']
-
-    if player.feed_condition is not None:
-        link = link + '&' + 'condition=' + player.feed_condition
-
-    return link
+def creating_session(subsession: Subsession):
+    get_or_create_journey_steps(session=subsession.session, max_supported_steps=C.NUM_ROUNDS)
+    step_config = get_step_config_for_round(
+        session=subsession.session,
+        round_number=subsession.round_number,
+        max_supported_steps=C.NUM_ROUNDS,
+    )
+    if step_config is None:
+        subsession.FEED = ""
+        return
+    prepare_feed_for_round(subsession=subsession, step_config=step_config)
 
 
 # PAGES
 class A_Intro(Page):
-    form_model = 'player'
+    form_model = "player"
 
     @staticmethod
     def is_displayed(player):
-        return not player.session.config['skip_intro']
+        return (
+            player.round_number == 1
+            and is_active_round(player.session, player.round_number, C.NUM_ROUNDS)
+            and not player.session.config["skip_intro"]
+        )
 
     @staticmethod
     def vars_for_template(player: Player):
-        language = player.session.config.get('language', 'en')
+        language = player.session.config.get("language", "en")
         context = get_template_context(
             language,
             player.participant.code,
             player.participant.label,
         )
-        context['custom_consent_available'] = len(player.session.config['consent_form']) > 0
-        context['consent_default_template'] = get_consent_default_template(language)
+        context["custom_consent_available"] = len(player.session.config["consent_form"]) > 0
+        context["consent_default_template"] = get_consent_default_template(language)
         return context
 
+
 class B_Briefing(Page):
-    form_model = 'player'
+    form_model = "player"
 
     @staticmethod
     def is_displayed(player):
-        return not player.session.config['skip_briefing'] and len(player.session.config['briefing']) > 0
+        return (
+            player.round_number == 1
+            and is_active_round(player.session, player.round_number, C.NUM_ROUNDS)
+            and not player.session.config["skip_briefing"]
+            and len(player.session.config["briefing"]) > 0
+        )
 
     @staticmethod
     def vars_for_template(player: Player):
-        return get_template_context(player.session.config.get('language', 'en'))
+        return get_template_context(player.session.config.get("language", "en"))
 
 
 class C_Feed(Page):
-    form_model = 'player'
+    form_model = "player"
+
+    @staticmethod
+    def is_displayed(player):
+        return is_active_round(player.session, player.round_number, C.NUM_ROUNDS)
 
     @staticmethod
     def get_form_fields(player: Player):
-        fields =  ['likes_data', 'replies_data', 'reposts_data', 'promoted_post_clicks', 'touch_capability', 'device_type', 'screen_resolution']
+        fields = [
+            "likes_data",
+            "replies_data",
+            "reposts_data",
+            "promoted_post_clicks",
+            "touch_capability",
+            "device_type",
+            "screen_resolution",
+        ]
 
-        if not player.session.config['topics'] & player.session.config['show_cta']:
-            more_fields =  ['scroll_sequence', 'viewport_data', "rowheight_data"] # , 'cta']
+        step_config = _step_config(player) or {}
+        topics = step_config.get("topics", player.session.config["topics"])
+        show_cta = step_config.get("show_cta", player.session.config["show_cta"])
+        if not (topics and show_cta):
+            more_fields = ["scroll_sequence", "viewport_data", "rowheight_data"]
         else:
-            more_fields =  ['scroll_sequence', 'viewport_data', "rowheight_data"]
-
+            more_fields = ["scroll_sequence", "viewport_data", "rowheight_data"]
         return fields + more_fields
 
     @staticmethod
     def vars_for_template(player: Player):
-        # ad = player.ad_condition
-        label_available = False
-        if player.participant.label is not None:
-            label_available = True
-        # Reset index to ensure consistent ordering (important for generic feed swiper)
+        label_available = player.participant.label is not None
+        step_config = _step_config(player) or {}
         tweets_df = player.participant.tweets.reset_index(drop=True)
-        language = player.session.config.get('language', 'en')
+
+        language = player.session.config.get("language", "en")
         context = get_template_context(
             language,
             player.participant.code,
             player.participant.label,
         )
-        channel_type = player.session.config['channel_type']
-        if channel_type == 'Linkedin':
-            context['feed_end_seen_text'] = context['ui']['feed_seen_posts_short']
-        elif channel_type == 'Generic':
-            context['feed_end_submit_id'] = 'submitButton'
+        channel_type = step_config.get("channel_type", player.session.config["channel_type"])
+        if channel_type == "Linkedin":
+            context["feed_end_seen_text"] = context["ui"]["feed_seen_posts_short"]
+        elif channel_type == "Generic":
+            context["feed_end_submit_id"] = "submitButton"
         context.update(
-            tweets=tweets_df.to_dict('index'),
-            topics=player.session.config['topics'],
-            search_term=player.session.config['search_term'],
+            tweets=tweets_df.to_dict("index"),
+            topics=step_config.get("topics", player.session.config["topics"]),
+            search_term=step_config.get("search_term", player.session.config["search_term"]),
             label_available=label_available,
         )
         return context
 
     @staticmethod
     def js_vars(player: Player):
-        language = player.session.config.get('language', 'en')
+        language = player.session.config.get("language", "en")
         return dict(
-            dwell_threshold=player.session.config['dwell_threshold'],
-            story_duration=player.session.config['story_duration'],
+            dwell_threshold=player.session.config["dwell_threshold"],
+            story_duration=player.session.config["story_duration"],
             **get_js_strings(language),
         )
-
 
     @staticmethod
     def before_next_page(player, timeout_happened):
         player.participant.finished = True
-        if 'prolific_completion_url' in player.session.vars:
-            if player.session.vars['prolific_completion_url'] is not None:
-                if 'completion_code' in player.session.vars:
-                    if player.session.vars['completion_code'] is not None:
-                        player.session.vars['prolific_completion_url'] = 'https://app.prolific.com/submissions/complete?cc=' + player.session.vars['completion_code']
-                    else:
-                        player.session.vars['prolific_completion_url'] = 'https://app.prolific.com/submissions/complete'
-                else: player.session.vars['prolific_completion_url'] = 'https://app.prolific.com/submissions/complete'
-            else:
-                player.session.vars['prolific_completion_url'] = 'NA'
-        else:
-            player.session.vars['prolific_completion_url'] = 'NA'
-
+        update_prolific_completion_url(player.session)
         if player.id_in_group != 1:
             player.participant.tweets = ""
 
 
 class D_Redirect(Page):
+    form_model = "player"
+    form_fields = ["questionnaire_completion_mode", "callback_step_id", "callback_token", "callback_received"]
 
     @staticmethod
     def is_displayed(player):
-        return len(player.session.config['survey_link']) > 0
+        if not is_active_round(player.session, player.round_number, C.NUM_ROUNDS):
+            return False
+        step_config = _step_config(player) or {}
+        if step_config.get("questionnaire_mode", "external") != "external":
+            return False
+        return len(step_config.get("survey_link", "")) > 0
 
     @staticmethod
     def vars_for_template(player: Player):
-        context = get_template_context(player.session.config.get('language', 'en'))
-        context['link'] = create_redirect(player)
+        step_config = _step_config(player) or {}
+        context = get_template_context(player.session.config.get("language", "en"))
+        context.update(
+            survey_link=build_survey_link(player=player, step_config=step_config),
+            step_id=step_config.get("step_id", ""),
+        )
         return context
 
     @staticmethod
     def js_vars(player):
-        return dict(link=create_redirect(player))
-
-class D_Debrief(Page):
+        step_config = _step_config(player) or {}
+        return bridge_js_vars(player=player, step_config=step_config)
 
     @staticmethod
+    def before_next_page(player, timeout_happened):
+        step_config = _step_config(player) or {}
+        step_id = step_config.get("step_id", "")
+
+        callback_received = player.callback_received == "1"
+        callback_valid = False
+        completion_mode = player.questionnaire_completion_mode or "manual_fallback"
+
+        if callback_received:
+            callback_valid = callback_is_valid(
+                player=player,
+                expected_step_id=step_id,
+                callback_step_id=player.callback_step_id,
+                callback_token=player.callback_token,
+            )
+            if callback_valid:
+                completion_mode = "auto_callback"
+            elif completion_mode != "manual_fallback":
+                completion_mode = "manual_fallback"
+
+        player.callback_valid = callback_valid
+        player.questionnaire_completion_mode = completion_mode
+        mark_step_completion(
+            player=player,
+            step_id=step_id,
+            completion_mode=completion_mode,
+            callback_valid=callback_valid,
+        )
+
+
+class D_Debrief(Page):
+    @staticmethod
     def is_displayed(player):
-        return len(player.session.config['survey_link']) == 0
+        return (
+            is_active_round(player.session, player.round_number, C.NUM_ROUNDS)
+            and is_last_active_round(player.session, player.round_number, C.NUM_ROUNDS)
+        )
 
     @staticmethod
     def vars_for_template(player: Player):
         return get_debrief_context(player)
 
-page_sequence = [A_Intro,
-                 B_Briefing,
-                 C_Feed,
-                 D_Redirect,
-                 D_Debrief]
+
+page_sequence = [A_Intro, B_Briefing, C_Feed, D_Redirect, E_Questionnaire, D_Debrief]
 
 
 def custom_export(players):
-    # header row
-    yield ['session', 'participant_code', 'participant_label', 'participant_in_session', 'condition', 'item_sequence',
-           'scroll_sequence', 'item_dwell_time', 'likes', 'replies', 'reposts']
-    for p in players:
-        participant = p.participant
-        session = p.session
-        yield [session.code, participant.code, participant.label, p.id_in_group, p.feed_condition, p.sequence,
-               p.scroll_sequence, p.viewport_data, p.likes_data, p.replies_data, p.reposts_data]
+    yield [
+        "session",
+        "participant_code",
+        "participant_label",
+        "participant_in_session",
+        "condition",
+        "item_sequence",
+        "scroll_sequence",
+        "item_dwell_time",
+        "likes",
+        "replies",
+        "reposts",
+        "round_number",
+        "step_id",
+        "questionnaire_completion_mode",
+        "callback_valid",
+        "record_type",
+        "question_id",
+        "question_prompt",
+        "question_type",
+        "answer_value",
+    ]
+
+    for player in players:
+        participant = player.participant
+        session = player.session
+        if not is_active_round(session, player.round_number, C.NUM_ROUNDS):
+            continue
+
+        base_row = [
+            session.code,
+            participant.code,
+            participant.label,
+            player.id_in_group,
+            player.feed_condition,
+            player.sequence,
+            player.scroll_sequence,
+            player.viewport_data,
+            player.likes_data,
+            player.replies_data,
+            player.reposts_data,
+            player.round_number,
+            player.step_id,
+            player.questionnaire_completion_mode,
+            player.callback_valid,
+        ]
+        yield base_row + feed_round_export_suffix()
+        for response_row in questionnaire_response_export_rows(player):
+            yield base_row + response_row

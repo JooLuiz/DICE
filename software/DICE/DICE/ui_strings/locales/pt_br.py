@@ -106,6 +106,12 @@ PT_BR_STRINGS: dict[str, str] = {
         'Se você não for redirecionado(a) em 10 segundos, clique neste botão.'
     ),
     'redirect_continue': 'Continuar',
+    'redirect_fallback_instructions': (
+        'Se o redirecionamento automático não estiver disponível na plataforma do seu '
+        'questionário, conclua-o e clique em "Concluí o questionário" para continuar.'
+    ),
+    'redirect_open_questionnaire': 'Abrir questionário',
+    'redirect_manual_complete': 'Concluí o questionário',
     'debrief_thanks': 'Obrigado(a)!',
     'debrief_appreciation': 'Sua participação é muito apreciada.',
     'debrief_confidentiality_label': 'Confidencialidade',

@@ -28,6 +28,9 @@ __temp*/
 # Django specific
 config.json
 
+# Local planning docs (not part of repo history)
+temp-plan/
+
 # Folders to completely exclude
 DICE_literature/
 feedback/

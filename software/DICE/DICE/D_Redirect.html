@@ -8,27 +8,29 @@
 {{ endblock }}
 
 
-
 {{ block content }}
 <body class="bg-light.bg-gradient">
 
     <div class="container">
         <div class="row justify-content-center mt-5">
             <div class="col-sm-8 col-md-8 col-lg-6">
-                <!-- Decision Card -->
                 <div class="card rounded mt-3 shadow-lg">
                     <div class="card-body p-5">
+                        <p>{{ ui.redirect_wait }}</p>
+                        <p>{{ ui.redirect_fallback_instructions }}</p>
 
-                        <p>
-                            {{ ui.redirect_wait }}
-                        </p>
+                        <input type="hidden" name="questionnaire_completion_mode" id="questionnaire_completion_mode" value="">
+                        <input type="hidden" name="callback_step_id" id="callback_step_id" value="">
+                        <input type="hidden" name="callback_token" id="callback_token" value="">
+                        <input type="hidden" name="callback_received" id="callback_received" value="0">
 
-                        <p>
-                            {{ ui.redirect_fallback }}
-                        </p>
-
-                        <div class="d-flex justify-content-center mt-4">
-                            <a class="btn btn-success shadow" href="{{link}}" role="button">{{ ui.redirect_continue }}</a>
+                        <div class="d-grid gap-2 mt-4">
+                            <a class="btn btn-outline-success shadow" href="{{ survey_link }}" id="open-survey-link" role="button">
+                                {{ ui.redirect_open_questionnaire }}
+                            </a>
+                            <button class="btn btn-success shadow" type="button" id="manual-complete-button">
+                                {{ ui.redirect_manual_complete }}
+                            </button>
                         </div>
                     </div>
                 </div>

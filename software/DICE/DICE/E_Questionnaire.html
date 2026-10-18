@@ -1,0 +1,73 @@
+{{ block scripts }}
+<script src="{{ static 'js/questionnaire_form.js' }}"></script>
+{{ endblock }}
+
+{{ block styles  }}
+<link rel="stylesheet" href="{% static 'css/styles.css' %}">
+<link rel="shortcut icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
+{{ endblock }}
+
+
+{{ block content }}
+<body class="bg-light.bg-gradient">
+
+    <form method="post">
+    <div class="container">
+        <div class="row justify-content-center mt-5">
+            <div class="col-sm-10 col-md-8 col-lg-6">
+                <div class="card rounded mt-3 shadow-lg">
+                    <div class="card-body p-5">
+                        <h4 class="mb-4">A few quick questions</h4>
+
+                        {{ for question in questions }}
+                        <div class="mb-4 questionnaire-question"
+                             data-question-id="{{question.question_id}}"
+                             data-question-type="{{question.question_type}}"
+                             data-required="{{question.is_required}}">
+                            <label class="form-label fw-semibold">{{question.prompt}}</label>
+
+                            {{ if question.question_type == "open_text" }}
+                            <textarea class="form-control" rows="3" {{ if question.is_required }}required{{ endif }}></textarea>
+
+                            {{ elif question.question_type == "multiple_choice" }}
+                            {{ for option in question.options }}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="{{option.value}}"
+                                       id="{{question.question_id}}_{{option.value}}">
+                                <label class="form-check-label" for="{{question.question_id}}_{{option.value}}">{{option.label}}</label>
+                            </div>
+                            {{ endfor }}
+
+                            {{ else }}
+                            <div class="d-flex flex-wrap {{ if question.question_type == "likert" }}justify-content-between{{ endif }} gap-2">
+                                {{ for option in question.options }}
+                                <div class="form-check {{ if question.question_type == "likert" }}text-center{{ endif }}">
+                                    <input class="form-check-input" type="radio" name="radio_{{question.question_id}}"
+                                           value="{{option.value}}" id="{{question.question_id}}_{{option.value}}"
+                                           {{ if question.is_required }}required{{ endif }}>
+                                    <label class="form-check-label d-block" for="{{question.question_id}}_{{option.value}}">{{option.label}}</label>
+                                </div>
+                                {{ endfor }}
+                            </div>
+                            {{ if question.question_type == "likert" }}
+                            <div class="d-flex justify-content-between text-muted small mt-1">
+                                <span>{{question.likert_min_label}}</span>
+                                <span>{{question.likert_max_label}}</span>
+                            </div>
+                            {{ endif }}
+                            {{ endif }}
+                        </div>
+                        {{ endfor }}
+
+                        <input type="hidden" name="questionnaire_answers_json" id="questionnaire_answers_json" value="">
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button class="btn btn-dark shadow" type="submit">Continue</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </form>
+{{ endblock }}
