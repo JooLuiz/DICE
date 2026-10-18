@@ -32,6 +32,99 @@ It provides guidance on how to utilize the tool for creating and customizing dyn
 
 As the tool is under development, please [contact me](mailto:hauke.roggenkamp@unisg.ch) prior to running a study.
 
+## Multi-Step Feed + Questionnaire Journeys
+
+DICE can now be configured as a repeated sequence of feed exposure and questionnaire steps:
+`feed_1 -> questionnaire_1 -> feed_2 -> questionnaire_2 -> ...`
+
+In `settings.py`, use `journey_steps` to define each cycle:
+
+```python
+SESSION_CONFIG_DEFAULTS = dict(
+    ...
+    max_journey_steps=20,
+    return_param_name="return_url",
+    journey_steps=[
+        dict(
+            step_id="step_1",
+            channel_type="Twitter",
+            data_path="https://raw.githubusercontent.com/.../step_1.csv",
+            delimiter=";",
+            condition_col="condition",
+            survey_link="https://your-platform.example/form-1",
+            url_param="PROLIFIC_PID",
+            return_strategy="auto_or_manual",
+        ),
+        dict(
+            step_id="step_2",
+            channel_type="Insta",
+            data_path="https://raw.githubusercontent.com/.../step_2.csv",
+            delimiter=";",
+            condition_col="condition",
+            survey_link="https://your-platform.example/form-2",
+            url_param="PROLIFIC_PID",
+            return_strategy="auto_or_manual",
+        ),
+    ],
+)
+```
+
+Notes:
+- If `journey_steps` is empty, DICE falls back to the previous single-step behavior from legacy keys (`channel_type`, `data_path`, `survey_link`, etc.).
+- Platforms that support callback redirects can return to DICE automatically using the configured return parameter.
+- For platforms that do not support fully automatic callbacks (common with Google Forms), participants can still continue with the manual fallback button shown on the bridge page.
+
+### In-System Questionnaires (optional, per step)
+
+Instead of redirecting to an external survey tool, a step can render its questionnaire directly
+inside DICE. This is opt-in per step — leave `questionnaire_mode` unset (or `"external"`) to keep
+using the external redirect flow above; nothing changes for existing configs.
+
+```python
+dict(
+    step_id="step_1",
+    channel_type="Insta",
+    data_path="https://raw.githubusercontent.com/.../step_1.csv",
+    questionnaire_mode="internal",
+    questionnaire_id="feed_1_followup",   # any label; included in the export
+    questionnaire_questions=[
+        dict(
+            question_id="enjoyment",
+            prompt="How much did you enjoy this feed?",
+            question_type="likert",       # "single_choice" | "multiple_choice" | "likert" | "open_text"
+            likert_min=1,
+            likert_max=5,
+            likert_min_label="Not at all",
+            likert_max_label="Very much",
+        ),
+        dict(
+            question_id="recalled_posts",
+            prompt="Which topics do you remember from the posts you just saw?",
+            question_type="multiple_choice",
+            is_required=False,
+            options=[
+                dict(value="travel", label="Travel"),
+                dict(value="food", label="Food"),
+            ],
+        ),
+        dict(
+            question_id="first_impression",
+            prompt="What are your first thoughts about this feed?",
+            question_type="open_text",
+            is_required=False,
+        ),
+    ],
+),
+```
+
+Notes:
+- `question_id` is optional; if omitted, one is generated from the step id and question order.
+- `is_required` defaults to `True`.
+- Answers are stored per question and included in the data export (one row per answered question,
+  with `record_type="questionnaire_response"`, alongside the regular per-round feed export rows).
+- See the `InstagramInternalQuestionnaire` demo session config in `settings.py` for a full working
+  example of two Instagram feeds, each followed by its own in-system questionnaire.
+
 ## Recommended Setup
 
 1. **Prolific:** DICE is optimized for Prolific. 
