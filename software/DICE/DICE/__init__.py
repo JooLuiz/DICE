@@ -16,6 +16,12 @@ from .questionnaire_bridge import (
 )
 from .questionnaire_models import feed_round_export_suffix, questionnaire_response_export_rows
 from .pages_questionnaire import E_Questionnaire
+from .ui_strings import (
+    get_consent_default_template,
+    get_debrief_context,
+    get_js_strings,
+    get_template_context,
+)
 
 
 doc = """
@@ -32,6 +38,9 @@ class C(BaseConstants):
     CONSENT_TEMPLATE = "DICE/T_Consent.html"
     TOPICS_TEMPLATE = "DICE/T_Trending_Topics.html"
     BANNER_TEMPLATE = "DICE/T_Banner_Ads.html"
+    FEED_END_TEMPLATE = "DICE/T_Partial_Feed_End.html"
+    FEED_END_STORIES_TEMPLATE = "DICE/T_Partial_Feed_End_Stories.html"
+    TWITTER_SIDEBAR_TEMPLATE = "DICE/T_Partial_Twitter_Sidebar.html"
 
     ITEM_TWITTER = "DICE/T_Item_Twitter.html"
     ITEM_LINKEDIN = "DICE/T_Item_Linkedin.html"
@@ -60,6 +69,8 @@ class Player(BasePlayer):
     rowheight_data = models.LongStringField(doc="tracks the time feed items were visible in a participants viewport.")
     likes_data = models.LongStringField(doc="tracks likes.", blank=True)
     replies_data = models.LongStringField(doc="tracks replies.", blank=True)
+    # New sessions require `otree resetdb` after adding this field.
+    reposts_data = models.LongStringField(doc="tracks reposts.", blank=True)
     promoted_post_clicks = models.LongStringField(doc="tracks the clicks on sponsored posts.", blank=True)
 
     touch_capability = models.BooleanField(
@@ -123,7 +134,15 @@ class A_Intro(Page):
 
     @staticmethod
     def vars_for_template(player: Player):
-        return dict(custom_consent_available=len(player.session.config["briefing"]) > 0)
+        language = player.session.config.get("language", "en")
+        context = get_template_context(
+            language,
+            player.participant.code,
+            player.participant.label,
+        )
+        context["custom_consent_available"] = len(player.session.config["consent_form"]) > 0
+        context["consent_default_template"] = get_consent_default_template(language)
+        return context
 
 
 class B_Briefing(Page):
@@ -138,6 +157,10 @@ class B_Briefing(Page):
             and len(player.session.config["briefing"]) > 0
         )
 
+    @staticmethod
+    def vars_for_template(player: Player):
+        return get_template_context(player.session.config.get("language", "en"))
+
 
 class C_Feed(Page):
     form_model = "player"
@@ -151,6 +174,7 @@ class C_Feed(Page):
         fields = [
             "likes_data",
             "replies_data",
+            "reposts_data",
             "promoted_post_clicks",
             "touch_capability",
             "device_type",
@@ -171,18 +195,33 @@ class C_Feed(Page):
         label_available = player.participant.label is not None
         step_config = _step_config(player) or {}
         tweets_df = player.participant.tweets.reset_index(drop=True)
-        return dict(
+
+        language = player.session.config.get("language", "en")
+        context = get_template_context(
+            language,
+            player.participant.code,
+            player.participant.label,
+        )
+        channel_type = step_config.get("channel_type", player.session.config["channel_type"])
+        if channel_type == "Linkedin":
+            context["feed_end_seen_text"] = context["ui"]["feed_seen_posts_short"]
+        elif channel_type == "Generic":
+            context["feed_end_submit_id"] = "submitButton"
+        context.update(
             tweets=tweets_df.to_dict("index"),
             topics=step_config.get("topics", player.session.config["topics"]),
             search_term=step_config.get("search_term", player.session.config["search_term"]),
             label_available=label_available,
         )
+        return context
 
     @staticmethod
     def js_vars(player: Player):
+        language = player.session.config.get("language", "en")
         return dict(
             dwell_threshold=player.session.config["dwell_threshold"],
             story_duration=player.session.config["story_duration"],
+            **get_js_strings(language),
         )
 
     @staticmethod
@@ -209,10 +248,12 @@ class D_Redirect(Page):
     @staticmethod
     def vars_for_template(player: Player):
         step_config = _step_config(player) or {}
-        return dict(
+        context = get_template_context(player.session.config.get("language", "en"))
+        context.update(
             survey_link=build_survey_link(player=player, step_config=step_config),
             step_id=step_config.get("step_id", ""),
         )
+        return context
 
     @staticmethod
     def js_vars(player):
@@ -258,6 +299,10 @@ class D_Debrief(Page):
             and is_last_active_round(player.session, player.round_number, C.NUM_ROUNDS)
         )
 
+    @staticmethod
+    def vars_for_template(player: Player):
+        return get_debrief_context(player)
+
 
 page_sequence = [A_Intro, B_Briefing, C_Feed, D_Redirect, E_Questionnaire, D_Debrief]
 
@@ -274,6 +319,7 @@ def custom_export(players):
         "item_dwell_time",
         "likes",
         "replies",
+        "reposts",
         "round_number",
         "step_id",
         "questionnaire_completion_mode",
@@ -302,6 +348,7 @@ def custom_export(players):
             player.viewport_data,
             player.likes_data,
             player.replies_data,
+            player.reposts_data,
             player.round_number,
             player.step_id,
             player.questionnaire_completion_mode,

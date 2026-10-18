@@ -24,7 +24,9 @@ def participant_identifier(player) -> str:
 
 
 def get_or_create_step_token(player, step_id: str) -> str:
-    step_tokens = player.participant.journey_step_tokens or {}
+    # Use `.vars.get(...)` rather than attribute access: PARTICIPANT_FIELDS
+    # descriptors raise KeyError on first access instead of returning a default.
+    step_tokens = player.participant.vars.get("journey_step_tokens") or {}
     if step_id not in step_tokens:
         step_tokens[step_id] = secrets.token_urlsafe(20)
         player.participant.journey_step_tokens = step_tokens
@@ -70,7 +72,7 @@ def bridge_js_vars(player, step_config: Dict[str, str]) -> Dict[str, str]:
 
 
 def callback_is_valid(player, expected_step_id: str, callback_step_id: str, callback_token: str) -> bool:
-    step_tokens = player.participant.journey_step_tokens or {}
+    step_tokens = player.participant.vars.get("journey_step_tokens") or {}
     expected_token = step_tokens.get(expected_step_id)
     if not expected_token:
         return False
@@ -78,7 +80,7 @@ def callback_is_valid(player, expected_step_id: str, callback_step_id: str, call
 
 
 def mark_step_completion(player, step_id: str, completion_mode: str, callback_valid: bool) -> None:
-    completion_registry = player.participant.journey_completed_steps or {}
+    completion_registry = player.participant.vars.get("journey_completed_steps") or {}
     completion_registry[step_id] = {
         "round_number": player.round_number,
         "completion_mode": completion_mode,

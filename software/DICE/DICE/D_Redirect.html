@@ -8,7 +8,6 @@
 {{ endblock }}
 
 
-
 {{ block content }}
 <body class="bg-light.bg-gradient">
 
@@ -17,11 +16,8 @@
             <div class="col-sm-8 col-md-8 col-lg-6">
                 <div class="card rounded mt-3 shadow-lg">
                     <div class="card-body p-5">
-                        <p>You are being redirected to the questionnaire, please wait...</p>
-                        <p>
-                            If automatic redirection is not available on your questionnaire platform, complete it and click
-                            "I completed the questionnaire" to continue.
-                        </p>
+                        <p>{{ ui.redirect_wait }}</p>
+                        <p>{{ ui.redirect_fallback_instructions }}</p>
 
                         <input type="hidden" name="questionnaire_completion_mode" id="questionnaire_completion_mode" value="">
                         <input type="hidden" name="callback_step_id" id="callback_step_id" value="">
@@ -30,10 +26,10 @@
 
                         <div class="d-grid gap-2 mt-4">
                             <a class="btn btn-outline-success shadow" href="{{ survey_link }}" id="open-survey-link" role="button">
-                                Open questionnaire
+                                {{ ui.redirect_open_questionnaire }}
                             </a>
                             <button class="btn btn-success shadow" type="button" id="manual-complete-button">
-                                I completed the questionnaire
+                                {{ ui.redirect_manual_complete }}
                             </button>
                         </div>
                     </div>

@@ -6,12 +6,14 @@ SESSION_CONFIGS = [
         app_sequence=['DICE'],
         num_demo_participants=3,
         channel_type="Twitter", # "Twitter_Replies",
+        language="pt-br"
     ),
     dict(
         name='Instagram',
         app_sequence=['DICE'],
         num_demo_participants=3,
         channel_type="Insta",
+        language="pt-br"
     ),
     dict(
         name='Stories',
@@ -19,18 +21,35 @@ SESSION_CONFIGS = [
         num_demo_participants=3,
         channel_type="Stories",
         story_duration=7,  # seconds each story is displayed before auto-advancing
+        language="pt-br"
     ),
     dict(
         name='Linkedin',
         app_sequence=['DICE'],
         num_demo_participants=3,
         channel_type="Linkedin",
+        language="pt-br"
     ),
     dict(
         name='Generic',
         app_sequence=['DICE'],
         num_demo_participants=3,
         channel_type="Generic",
+        language="pt-br"
+    ),
+    dict(
+        name='Twitter_PT',
+        app_sequence=['DICE'],
+        num_demo_participants=3,
+        channel_type="Twitter",
+        language='pt-br',
+    ),
+    dict(
+        name='Instagram_PT',
+        app_sequence=['DICE'],
+        num_demo_participants=3,
+        channel_type="Insta",
+        language='pt-br',
     ),
     dict(
         name='InstagramInternalQuestionnaire',
@@ -134,6 +153,7 @@ SESSION_CONFIG_DEFAULTS = dict(
     sort_by='datetime',
     condition_col='condition',
     search_term = "@9GAG", #"'#Yosemite',
+    language = 'en',  # 'pt-br' — translates fixed UI; set briefing/consent_form/study_name/CSV in target language
 
     # Legacy ?
     topics = True,
