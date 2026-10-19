@@ -30,6 +30,8 @@ config.json
 
 # Local planning docs (not part of repo history)
 temp-plan/
+# Local samples (not part of repo history)
+sample-feeds/
 
 # Folders to completely exclude
 DICE_literature/

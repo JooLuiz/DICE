@@ -134,4 +134,5 @@ PT_BR_STRINGS: dict[str, str] = {
         'com seu ID único: <code>{code}</code>'
     ),
     'debrief_complete': 'Clique aqui para concluir a pesquisa',
+    'debrief_close_tab': 'Você já pode fechar esta aba.',
 }

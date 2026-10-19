@@ -1,0 +1,118 @@
+{% extends "otree/Session.html" %}
+
+{#
+Project-level override of otree/templates/otree/SessionData.html.
+
+Stock oTree renders every Player field (interaction tracking + questionnaire bookkeeping +
+housekeeping fields) as one flat table, with no participant identity column and a raw
+`questionnaire_answers_json` blob instead of one column per question. This override keeps the
+same AJAX endpoint and round/app navigation as stock, but renders four collapsed tables per
+round instead of one: Interaction data, Internal questionnaire (one column per question_id,
+pivoted client-side from questionnaire_answers_json), External questionnaire (callback
+bookkeeping for survey-link steps), and Other fields for the rest. Each heading is a <details>
+summary, so the table stays closed until that heading is clicked.
+
+All of the logic lives in DICE/static/js/session_data_tables.js (field-bucketing, rendering,
+popovers) and DICE/static/css/session_data.css (scroll containers, truncation, headings) -- this
+template only wires up the server-provided data and the round-group markup. No Python view is
+overridden: oTree only scans its own fixed view modules for admin routes (see
+otree/urls.py:get_urlpatterns), so there is no supported way to add a new backend endpoint here.
+
+Row data comes from the existing `ExportSessionWide` CSV route (the same one behind the stock
+"Plain"/"Excel" links below), not from `SessionDataAjax`. oTree's SessionDataAjax endpoint runs
+every cell through `sanitize_for_live_update()`, which HTML-escapes AND hard-truncates every value
+to 30 characters -- fine for oTree's own flat preview table, but it mangles and cuts off our
+`questionnaire_answers_json` blobs well before the closing brace, breaking both the per-question
+pivot and the "see the full answer" popover. The wide CSV export has no such truncation.
+#}
+
+{% block internal_styles %}
+  {{ super() }}
+  <link href="{% static 'css/session_data.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block no_container_content %}
+  {{ super() }}
+
+  {% for table in tables %}
+    <div class="dice-round-group" data-round-index="{{ forloop.counter0 }}" style="display: none">
+      <details class="dice-data-section">
+        <summary><h5 class="d-inline">Interaction data</h5></summary>
+        <div class="dice-table-scroll">
+          <table class="table table-hover dice-interaction-table"><thead></thead><tbody></tbody></table>
+        </div>
+      </details>
+
+      <details class="dice-data-section">
+        <summary><h5 class="d-inline">Internal questionnaire</h5></summary>
+        <div class="dice-table-scroll">
+          <table class="table table-hover dice-questionnaire-internal-table"><thead></thead><tbody></tbody></table>
+        </div>
+      </details>
+
+      <details class="dice-data-section">
+        <summary><h5 class="d-inline">External questionnaire</h5></summary>
+        <div class="dice-table-scroll">
+          <table class="table table-hover dice-questionnaire-external-table"><thead></thead><tbody></tbody></table>
+        </div>
+      </details>
+
+      <details class="dice-data-section">
+        <summary><h5 class="d-inline">Other fields</h5></summary>
+        <div class="dice-table-scroll">
+          <table class="table table-hover dice-other-table"><thead></thead><tbody></tbody></table>
+        </div>
+      </details>
+    </div>
+  {% endfor %}
+
+  <br><br><br><br>
+  <div id="bottom-toolbar">
+    <table style="white-space:nowrap; width: 100%">
+      <tr>
+        <td>
+          <button class="btn btn-secondary btn-lg" id="app-prev">&lt;</button>
+          <button class="btn btn-secondary btn-lg" id="app-next">&gt;</button>
+        </td>
+        <td>
+          <button class="btn btn-secondary btn-lg" id="round-prev">&lt;</button>
+          <button class="btn btn-secondary btn-lg" id="round-next">&gt;</button>
+        </td>
+        <td>
+          <button class="btn btn-secondary btn-lg" id="btn-refresh">↻</button>
+        </td>
+        <td style="width: 12ch">
+          <a href="{% url 'ExportSessionWide' session.code %}?token={{ DATA_EXPORT_HASH }}">Plain</a> |
+          <a href="{% url 'ExportSessionWide' session.code %}?token={{ DATA_EXPORT_HASH }}&excel=1">Excel</a>
+        </td>
+      </tr>
+      <tr>
+        <td style="width: 30ch">
+          <div id="cur-app"></div>
+        </td>
+        <td style="width: 10ch; font-weight: bold">Round <span id="cur-round"></span></td>
+        <td><small><span id="msg-refreshed" style="display: none; color: darkgreen"></span></small></td>
+        <td></td>
+      </tr>
+    </table>
+  </div>
+  <div id="server_error" class="alert alert-danger" style="display: none;">
+    <a href="#" class="close" data-bs-dismiss="alert">&times;</a>
+    Failed to connect to server
+  </div>
+{% endblock %}
+
+{% block internal_scripts %}
+  {{ super() }}
+  <script>
+    window.DICE_SESSION_DATA_CONFIG = {
+      wideExportUrl: "{% url 'ExportSessionWide' session.code %}?token={{ DATA_EXPORT_HASH }}",
+      roundNumbersBySubsession: {{ round_numbers_by_subsession|safe }},
+      appNamesBySubsession: {{ app_names_by_subsession|safe }},
+      fieldHeadersByApp: {{ field_headers_json|safe }},
+    };
+  </script>
+  <script src="{% static 'js/dice_csv_parser.js' %}"></script>
+  <script src="{% static 'js/dice_wide_csv_mapper.js' %}"></script>
+  <script src="{% static 'js/session_data_tables.js' %}"></script>
+{% endblock %}

@@ -48,9 +48,6 @@ def build_survey_link(player, step_config: Dict[str, str]) -> str:
         (CALLBACK_TOKEN_PARAM, get_or_create_step_token(player=player, step_id=step_id)),
     ]
 
-    completion_code = player.session.vars.get("completion_code")
-    if completion_code:
-        survey_parameters.append(("cc", str(completion_code)))
     if player.feed_condition:
         survey_parameters.append(("condition", player.feed_condition))
 
@@ -88,18 +85,3 @@ def mark_step_completion(player, step_id: str, completion_mode: str, callback_va
     }
     player.participant.journey_completed_steps = completion_registry
     player.participant.journey_current_step = step_id
-
-
-def update_prolific_completion_url(session) -> None:
-    completion_code = session.vars.get("completion_code")
-    if completion_code:
-        session.vars["prolific_completion_url"] = (
-            f"https://app.prolific.com/submissions/complete?cc={completion_code}"
-        )
-        return
-
-    current_completion_url = session.vars.get("prolific_completion_url")
-    if current_completion_url is None:
-        session.vars["prolific_completion_url"] = "NA"
-        return
-    session.vars["prolific_completion_url"] = "https://app.prolific.com/submissions/complete"

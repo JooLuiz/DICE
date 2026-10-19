@@ -149,4 +149,5 @@ EN_STRINGS: dict[str, str] = {
         'with your unique ID: <code>{code}</code>'
     ),
     'debrief_complete': 'Click here to complete the survey',
+    'debrief_close_tab': 'You can now close this tab.',
 }

@@ -1,0 +1,72 @@
+/* Styles for the session Data tab override (see _templates/otree/SessionData.html and
+   DICE/static/js/session_data_tables.js). Kept separate from the template so the markup stays
+   readable and the styling can be tuned independently. */
+
+.dice-data-section {
+    margin-bottom: 1.5rem;
+}
+
+.dice-data-section > h5,
+.dice-data-section > summary {
+    margin-bottom: 0.5rem;
+}
+
+/* The scroll container -- not the <table> itself -- is the positioning context for the sticky
+   header below, so the horizontal scrollbar stays contained instead of overflowing the page. */
+.dice-table-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+.dice-table-scroll table {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.dice-table-scroll thead th {
+    position: sticky;
+    top: 0;
+    background-color: white;
+    z-index: 1;
+}
+
+.dice-table-scroll th:first-child,
+.dice-table-scroll td:first-child {
+    position: sticky;
+    left: 0;
+    background-color: white;
+}
+
+/* Later header cells are also sticky (top: 0, z-index: 1). The corner header shares that
+   layer, so a sideways scroll paints those headers over participant_code_display. Lift only
+   the header corner above them; body cells stay on the lower layer. */
+.dice-table-scroll thead th:first-child {
+    z-index: 2;
+}
+
+/* Truncated cell values: click to open a popover with the full text (see
+   session_data_tables.js's renderCellValue). */
+.dice-cell-value {
+    display: inline-block;
+    max-width: 24ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+}
+
+.dice-cell-value.dice-cell-expandable {
+    cursor: pointer;
+    text-decoration: underline dotted;
+}
+
+#bottom-toolbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    background-color: white;
+    padding-bottom: 5px;
+    padding-left: 5px;
+    width: 100%;
+}

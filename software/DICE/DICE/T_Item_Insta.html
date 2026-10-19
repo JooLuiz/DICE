@@ -1,7 +1,9 @@
 {{ if i.condition == player.feed_condition }}
     {{ if i.pic_available == True }}
         {{ if i.sponsored }}
-            <div id="{{i.doc_id}}" class="insta-post border-bottom" onmouseover="sequence('i' + {{i.doc_id}});" ontouchstart="sequence('i' + {{i.doc_id}});">
+            <!-- promoted-content on the outer post (not the image) so only the CTA bar below
+                 is clickable/trackable; the image behaves exactly like an organic post. -->
+            <div id="{{i.doc_id}}" class="insta-post promoted-content border-bottom" onmouseover="sequence('i' + {{i.doc_id}});" ontouchstart="sequence('i' + {{i.doc_id}});">
                 <!-- Post Header -->
                 <div class="d-flex align-items-center justify-content-between p-2">
                     <div class="d-flex align-items-center">
@@ -23,17 +25,14 @@
                     <i class="bi bi-three-dots"></i>
                 </div>
 
-                <!-- Post Image -->
+                <!-- Post Image: a plain, non-clickable image like an organic post. Double-tap
+                     only likes it (insta_double_tap_like.js); it must not navigate anywhere. -->
                 <div class="insta-post-media position-relative mt-2">
-                    <div class="promoted-content spons-post">
-                        <a href="{{i.target}}" target="_blank" style="text-decoration: none; cursor: pointer;">
-                            <img src="{{i.media}}" class="w-100 img-fluid" style="object-fit: cover;" alt="{{i.alt_text}}">
-                        </a>
-                    </div>
+                    <img src="{{i.media}}" class="w-100 img-fluid" style="object-fit: cover;" alt="{{i.alt_text}}">
                 </div>
 
-                <!-- CTA Button -->
-                <a href="{{i.target}}" target="_blank" class="d-flex justify-content-between align-items-center px-3 py-2 text-decoration-none border-bottom" style="background-color: #fafafa;">
+                <!-- CTA Button: the only clickable/trackable element on a sponsored post. -->
+                <a href="{{i.target}}" target="_blank" class="sponsored-cta d-flex justify-content-between align-items-center px-3 py-2 text-decoration-none border-bottom" style="background-color: #fafafa;">
                     <div>
                         <div class="fw-semibold text-dark" style="font-size: 14px;">{{i.username}}</div>
                         <div class="text-muted" style="font-size: 12px;">{{i.handle}}</div>

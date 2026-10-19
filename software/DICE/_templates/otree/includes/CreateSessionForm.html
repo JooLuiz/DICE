@@ -1,0 +1,208 @@
+<!--
+Project-level override of otree/templates/otree/includes/CreateSessionForm.html.
+
+oTree's templating loader checks this `_templates/` directory before its own built-in
+templates (see otree/templating/loader.py), so this file replaces the stock one for every
+session config. Changes versus the stock file:
+
+1. The generic "Custom" fields table skips `step_*`, `survey_link`, `data_path`, and `language`
+   fields -- they get their own labeled controls below instead of bare, unlabeled text inputs.
+   Filtering is done by checking the rendered HTML string for those substrings, because DICE's
+   templating engine (ibis) only allows literal arguments in function calls -- it cannot call
+   `config.editable_field_html(field_name)` with `field_name` as a loop variable.
+2. A labeled "Journey Steps" section is added for every config, with one block of inputs per
+   step slot (step_1_feed_csv_url, step_1_survey_link, step_1_questionnaire_json, step_2_...,
+   etc.) and a shared JSON example covering all four supported question types. Each step
+   inherits that session's own channel_type (see session_config_steps.py).
+3. A "Language" dropdown (en / pt-br, the only two supported UI locales) replaces the generic
+   free-text `language` input.
+
+See README.md's "Running a Real Study Without Editing Code" section for the researcher-facing
+explanation of this form.
+-->
+<form id="form">
+  {% csrf_token %}
+
+  <div class="mb-3">
+    <label class="col-form-label" for="session_config">
+      {# the label and help_text are different for mturk #}
+      {{ form.session_config.label }}
+    </label>
+    {{ form.session_config }}
+  </div>
+
+  <div class="mb-3">
+    <label class="col-form-label" for="num_participants">
+      {# the label and help_text are different for mturk #}
+      {{ form.num_participants.label }}
+    </label>
+    <div class="controls">
+      {{ form.num_participants }}
+      {% for config in configs %}
+        <div id="lcm-{{ config.name }}" class="lcm"
+             style="display:none">
+          <p>Must be a multiple of {{ config.get_lcm() }}</p></div>
+      {% endfor %}
+      <p class="help-block">{{ form.num_participants.description }}</p>
+    </div>
+  </div>
+
+  {% if form.is_mturk.object_data %}
+    <input id="is_mturk" name="is_mturk" type="hidden" value="y">
+  {% endif %}
+  {{ form.room_name }}
+
+  <div>
+    <input class="btn btn-primary"
+           value="Create"
+           id="btn-create-session"
+           type="submit">
+  </div>
+  <br>
+
+  <progress id="create-session-wait" style="display:none"></progress>
+  <div id="create-session-error" class="alert alert-danger" style="display:none"></div>
+  <br>
+  {% for config in configs %}
+
+    <div class="config" id="config-{{ config.name }}" style="display: none">
+      <div class="edit-config"
+           id="edit-config-{{ config.name }}">
+        <h5>
+          <a data-bs-toggle="collapse"
+             href="#edit-config-table-{{ config.name }}"
+             class="btn-block">
+            Configure session
+            <img src='{% static "glyphicons/cogwheel.png" %}'>
+          </a>
+        </h5>
+        <div class="collapse"
+             id="edit-config-table-{{ config.name }}">
+          {% if config.custom_editable_fields() %}
+            <h5>Custom</h5>
+            <table class="table">
+              {% for field in config.custom_editable_fields_html() %}
+                {# step_*, survey_link, data_path, language, and completion_redirect_url get their own labeled controls #}
+                {% if 'step_' not in field and 'survey_link' not in field and 'data_path' not in field and 'language' not in field and 'completion_redirect_url' not in field %}
+                  {{ field|safe }}
+                {% endif %}
+              {% endfor %}
+            </table>
+          {% else %}
+            <p><i>
+              You can make more properties configurable
+              by adding them to your session config in
+              settings.py.
+            </i></p>
+          {% endif %}
+
+          <div class="mb-3">
+            <label class="col-form-label"><b>Language</b></label>
+            <select class="form-select"
+                    name="{{ config.html_field_name('language') }}">
+              <option value="en" {% if config.language == 'en' %}selected{% endif %}>English (en)</option>
+              <option value="pt-br" {% if config.language == 'pt-br' %}selected{% endif %}>Português (pt-br)</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="col-form-label" for="{{ config.html_field_name('completion_redirect_url') }}">
+              <b>Completion redirect link (optional)</b>
+            </label>
+            <input type="text" class="form-control"
+                   id="{{ config.html_field_name('completion_redirect_url') }}"
+                   name="{{ config.html_field_name('completion_redirect_url') }}"
+                   value="{{ config.completion_redirect_url }}">
+            <p class="help-block">
+              Shown as a button on the final debrief page, after the last step (e.g. your
+              Prolific completion link). Leave blank to just show a thank-you message instead.
+            </p>
+          </div>
+
+          {% include "otree/includes/JourneySteps.html" %}
+
+          {# we only need to clarify that these are built-in if there are also custom ones #}
+          {% if config.custom_editable_fields() %}
+            <h5>General</h5>{% endif %}
+          <table class="table">
+            {% for field in config.builtin_editable_fields_html() %}
+              {{ field|safe }}
+            {% endfor %}
+          </table>
+        </div>
+      </div>
+
+      {% with config=config %}
+        {% include "otree/includes/SessionInfo.html" %}
+      {% endwith %}
+    </div>
+
+  {% endfor %}
+</form>
+
+<script>
+
+    function showSessionConfigInfo(sessionconfigname) {
+        $('.summary').hide();
+        $('.config').hide();
+        $('#config-' + sessionconfigname).show();
+        $('.lcm').hide();
+        $('#lcm-' + sessionconfigname).show();
+    }
+
+    $(document).ready(function () {
+        let dropdown = $('[name=session_config]')
+        $('.summary').hide();
+        $('.config').hide();
+        $('.lcm').hide();
+        var current_session_config = dropdown.val();
+        if (current_session_config) {
+            showSessionConfigInfo(current_session_config);
+        }
+
+        dropdown.change(function () {
+            showSessionConfigInfo(dropdown.val());
+        })
+
+        let $createSessionError = $("#create-session-error");
+        let $createSessionWait = $("#create-session-wait");
+        let socket = makeReconnectingWebSocket("/create_session");
+        let $btnCreateSession = $('#btn-create-session');
+        $btnCreateSession.click(function (e) {
+            $btnCreateSession.prop('disabled', true);
+            $createSessionError.hide();
+            $createSessionWait.show();
+
+            let ary = $('#form').serializeArray();
+            let form_data = {};
+            for (let entry of ary) {
+                form_data[entry.name] = entry.value;
+            }
+            socket.send(JSON.stringify(form_data));
+            e.preventDefault();
+        });
+
+        // handle incoming messages
+        socket.onmessage = function (message) {
+            $createSessionWait.hide();
+            let data = JSON.parse(message.data);
+            if (data.traceback) {
+                $createSessionError.text(data.error);
+                $createSessionError.append('<pre>' + data.traceback + '</pre>');
+                $createSessionError.show();
+            } else if (data.validation_errors) {
+                $createSessionError.text(JSON.stringify(data.validation_errors));
+                $createSessionError.show();
+            } else if (data.session_url) {
+                // because the user could press back button later
+                $createSessionError.hide();
+                $createSessionWait.hide();
+                window.location.href = data.session_url;
+                return; // so that we don't re-enable create button
+            } else {
+                $createSessionError.text("Unexpected error: " + message.data);
+            }
+            $btnCreateSession.prop('disabled', false);
+        }
+    });
+</script>

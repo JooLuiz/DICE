@@ -85,4 +85,5 @@ def get_debrief_context(player) -> dict[str, Any]:
         email=config['eMail'],
         code=player.participant.code,
     )
+    context['completion_redirect_url'] = str(config.get('completion_redirect_url') or '')
     return context

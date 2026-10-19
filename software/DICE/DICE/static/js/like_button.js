@@ -181,6 +181,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Instagram sponsored posts: only the dedicated CTA bar is clickable/trackable (the post
+    // image itself is a plain, non-navigating image -- see T_Item_Insta.html). The CTA is a
+    // real `<a target="_blank">`, so we just track the click and let the browser navigate
+    // natively instead of preventDefault + manually re-opening (which is what caused a
+    // double-click to open two tabs for the old whole-post-is-a-link markup).
+    document.querySelectorAll('.sponsored-cta').forEach(ctaLink => {
+        ctaLink.addEventListener('click', function() {
+            const post = ctaLink.closest('.promoted-content');
+            if (post) {
+                trackPromotedClicks(post);
+            }
+        });
+    });
+
     function collectDataHarmonized() {
         let likesData = collectLikes();
         let repliesData = collectReplies();
