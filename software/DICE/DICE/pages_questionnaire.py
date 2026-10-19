@@ -7,6 +7,7 @@ rather than at module import time, so import order relative to __init__.py never
 """
 from otree.api import Page
 
+from .questionnaire_bridge import mark_step_completion
 from .questionnaire_models import save_questionnaire_responses
 
 
@@ -36,3 +37,12 @@ class E_Questionnaire(Page):
 
         step_config = _step_config(player) or {}
         save_questionnaire_responses(player=player, step_config=step_config)
+        # Mirrors D_Redirect's completion bookkeeping for the external-survey flow, so
+        # journey_completed_steps reliably reflects "did this participant finish this step"
+        # regardless of questionnaire_mode -- needed to identify partial-journey drop-off.
+        mark_step_completion(
+            player=player,
+            step_id=str(step_config.get("step_id") or ""),
+            completion_mode="internal_submitted",
+            callback_valid=True,
+        )

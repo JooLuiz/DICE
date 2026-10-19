@@ -1,0 +1,197 @@
+<!--
+Journey Steps section, included from CreateSessionForm.html for every session config. Renders 6
+fixed step slots (step_1 .. step_6); a step is only used if its "Feed CSV link" is filled in --
+see session_config_steps.py's build_steps_from_numbered_fields. Each step is rendered using the
+session's own channel_type (Twitter, Insta, Stories, Linkedin, or Generic).
+
+Slots are unrolled by hand (not a loop over a dynamic field name) because DICE's templating
+engine (otree.templating / ibis) only supports literal field names in dotted variable access
+(e.g. config.step_1_feed_csv_url) -- it has no string-concatenation operator to build a field
+name like "step_" + slot_index + "_feed_csv_url" at render time.
+
+Field names use config.html_field_name(...) so WSCreateSession (otree/channels/consumers.py)
+picks them up the same way it picks up any other editable_fields() entry.
+-->
+<h5>Journey Steps</h5>
+<p>
+  Each slot below is one feed exposure. Leave a slot's "Feed CSV link" blank to skip it --
+  slots are used in order (1, 2, 3, ...), so don't leave a gap before a slot you want used.
+  Posts whose questionnaire is answered in-app should leave "External survey link" blank and use
+  "Questions (JSON)" instead; posts followed by an outside survey (e.g. Qualtrics) should fill in
+  "External survey link" and leave "Questions (JSON)" blank.
+</p>
+
+<details class="mb-3">
+  <summary><b>Questions (JSON) format -- one example of each question type</b></summary>
+  <pre style="white-space: pre-wrap; font-size: 12px;">[
+  {
+    "question_type": "single_choice",
+    "prompt": "How would you rate this feed overall?",
+    "options": [
+      {"value": "poor", "label": "Poor"},
+      {"value": "good", "label": "Good"},
+      {"value": "excellent", "label": "Excellent"}
+    ]
+  },
+  {
+    "question_type": "multiple_choice",
+    "prompt": "Which topics do you remember seeing?",
+    "is_required": false,
+    "options": [
+      {"value": "travel", "label": "Travel"},
+      {"value": "food", "label": "Food"}
+    ]
+  },
+  {
+    "question_type": "likert",
+    "prompt": "How much did you enjoy this feed?",
+    "likert_min": 1,
+    "likert_max": 5,
+    "likert_min_label": "Not at all",
+    "likert_max_label": "Very much"
+  },
+  {
+    "question_type": "open_text",
+    "prompt": "What are your first thoughts about this feed?",
+    "is_required": false
+  }
+]</pre>
+  <p>
+    Every question also accepts an optional <code>"question_id"</code> (auto-generated if
+    omitted) and <code>"is_required"</code> (defaults to <code>true</code>).
+  </p>
+</details>
+
+<table class="table">
+  <tr><td colspan="2"><b>Step 1</b></td></tr>
+  <tr>
+    <td>Feed CSV link</td>
+    <td><input type="text" class="form-control"
+               name="{{ config.html_field_name('step_1_feed_csv_url') }}"
+               value="{{ config.step_1_feed_csv_url }}"
+               placeholder="https://raw.githubusercontent.com/.../instagram_posts.csv"></td>
+  </tr>
+  <tr>
+    <td>External survey link (optional)</td>
+    <td><input type="text" class="form-control"
+               name="{{ config.html_field_name('step_1_survey_link') }}"
+               value="{{ config.step_1_survey_link }}"
+               placeholder="https://your-platform.example/form"></td>
+  </tr>
+  <tr>
+    <td>Questions (JSON, optional)</td>
+    <td><textarea class="form-control" rows="3"
+               name="{{ config.html_field_name('step_1_questionnaire_json') }}"
+               placeholder='[{"question_type": "open_text", "prompt": "..."}]'>{{ config.step_1_questionnaire_json }}</textarea></td>
+  </tr>
+
+  <tr><td colspan="2"><b>Step 2</b></td></tr>
+  <tr>
+    <td>Feed CSV link</td>
+    <td><input type="text" class="form-control"
+               name="{{ config.html_field_name('step_2_feed_csv_url') }}"
+               value="{{ config.step_2_feed_csv_url }}"
+               placeholder="https://raw.githubusercontent.com/.../instagram_posts.csv"></td>
+  </tr>
+  <tr>
+    <td>External survey link (optional)</td>
+    <td><input type="text" class="form-control"
+               name="{{ config.html_field_name('step_2_survey_link') }}"
+               value="{{ config.step_2_survey_link }}"
+               placeholder="https://your-platform.example/form"></td>
+  </tr>
+  <tr>
+    <td>Questions (JSON, optional)</td>
+    <td><textarea class="form-control" rows="3"
+               name="{{ config.html_field_name('step_2_questionnaire_json') }}"
+               placeholder='[{"question_type": "open_text", "prompt": "..."}]'>{{ config.step_2_questionnaire_json }}</textarea></td>
+  </tr>
+
+  <tr><td colspan="2"><b>Step 3</b></td></tr>
+  <tr>
+    <td>Feed CSV link</td>
+    <td><input type="text" class="form-control"
+               name="{{ config.html_field_name('step_3_feed_csv_url') }}"
+               value="{{ config.step_3_feed_csv_url }}"
+               placeholder="https://raw.githubusercontent.com/.../instagram_posts.csv"></td>
+  </tr>
+  <tr>
+    <td>External survey link (optional)</td>
+    <td><input type="text" class="form-control"
+               name="{{ config.html_field_name('step_3_survey_link') }}"
+               value="{{ config.step_3_survey_link }}"
+               placeholder="https://your-platform.example/form"></td>
+  </tr>
+  <tr>
+    <td>Questions (JSON, optional)</td>
+    <td><textarea class="form-control" rows="3"
+               name="{{ config.html_field_name('step_3_questionnaire_json') }}"
+               placeholder='[{"question_type": "open_text", "prompt": "..."}]'>{{ config.step_3_questionnaire_json }}</textarea></td>
+  </tr>
+
+  <tr><td colspan="2"><b>Step 4</b></td></tr>
+  <tr>
+    <td>Feed CSV link</td>
+    <td><input type="text" class="form-control"
+               name="{{ config.html_field_name('step_4_feed_csv_url') }}"
+               value="{{ config.step_4_feed_csv_url }}"
+               placeholder="https://raw.githubusercontent.com/.../instagram_posts.csv"></td>
+  </tr>
+  <tr>
+    <td>External survey link (optional)</td>
+    <td><input type="text" class="form-control"
+               name="{{ config.html_field_name('step_4_survey_link') }}"
+               value="{{ config.step_4_survey_link }}"
+               placeholder="https://your-platform.example/form"></td>
+  </tr>
+  <tr>
+    <td>Questions (JSON, optional)</td>
+    <td><textarea class="form-control" rows="3"
+               name="{{ config.html_field_name('step_4_questionnaire_json') }}"
+               placeholder='[{"question_type": "open_text", "prompt": "..."}]'>{{ config.step_4_questionnaire_json }}</textarea></td>
+  </tr>
+
+  <tr><td colspan="2"><b>Step 5</b></td></tr>
+  <tr>
+    <td>Feed CSV link</td>
+    <td><input type="text" class="form-control"
+               name="{{ config.html_field_name('step_5_feed_csv_url') }}"
+               value="{{ config.step_5_feed_csv_url }}"
+               placeholder="https://raw.githubusercontent.com/.../instagram_posts.csv"></td>
+  </tr>
+  <tr>
+    <td>External survey link (optional)</td>
+    <td><input type="text" class="form-control"
+               name="{{ config.html_field_name('step_5_survey_link') }}"
+               value="{{ config.step_5_survey_link }}"
+               placeholder="https://your-platform.example/form"></td>
+  </tr>
+  <tr>
+    <td>Questions (JSON, optional)</td>
+    <td><textarea class="form-control" rows="3"
+               name="{{ config.html_field_name('step_5_questionnaire_json') }}"
+               placeholder='[{"question_type": "open_text", "prompt": "..."}]'>{{ config.step_5_questionnaire_json }}</textarea></td>
+  </tr>
+
+  <tr><td colspan="2"><b>Step 6</b></td></tr>
+  <tr>
+    <td>Feed CSV link</td>
+    <td><input type="text" class="form-control"
+               name="{{ config.html_field_name('step_6_feed_csv_url') }}"
+               value="{{ config.step_6_feed_csv_url }}"
+               placeholder="https://raw.githubusercontent.com/.../instagram_posts.csv"></td>
+  </tr>
+  <tr>
+    <td>External survey link (optional)</td>
+    <td><input type="text" class="form-control"
+               name="{{ config.html_field_name('step_6_survey_link') }}"
+               value="{{ config.step_6_survey_link }}"
+               placeholder="https://your-platform.example/form"></td>
+  </tr>
+  <tr>
+    <td>Questions (JSON, optional)</td>
+    <td><textarea class="form-control" rows="3"
+               name="{{ config.html_field_name('step_6_questionnaire_json') }}"
+               placeholder='[{"question_type": "open_text", "prompt": "..."}]'>{{ config.step_6_questionnaire_json }}</textarea></td>
+  </tr>
+</table>

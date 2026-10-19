@@ -122,8 +122,48 @@ Notes:
 - `is_required` defaults to `True`.
 - Answers are stored per question and included in the data export (one row per answered question,
   with `record_type="questionnaire_response"`, alongside the regular per-round feed export rows).
-- See the `InstagramInternalQuestionnaire` demo session config in `settings.py` for a full working
-  example of two Instagram feeds, each followed by its own in-system questionnaire.
+- You don't need to hand-write this in `settings.py` to try it out — the **Journey Steps** UI
+  described below lets you configure an internal questionnaire for any step directly on the
+  `/sessions` create-session screen.
+
+## Running a Real Study Without Editing Code
+
+Besides configuring `journey_steps` in `settings.py` (above), a researcher can configure and
+launch a real multi-step study entirely from oTree's native session-creation screen, with no code
+changes and no redeploy. This works the same way for every session config (`Twitter`,
+`Instagram`, `Stories`, `Linkedin`, `Generic`) — each step renders using that config's own
+channel.
+
+1. Go to `/sessions` on your deployed DICE App and click **Create new session**.
+2. Pick the session config matching the platform you want (e.g. **Instagram**) and set **Number
+   of participants**.
+3. Expand **Configure session**. Set **Language** (English or Português) from the dropdown.
+4. Fill in the **Journey Steps** section: for each feed exposure you want (up to 6, used in
+   order), paste a **Feed CSV link** (the same raw-link workflow used for the CSV template linked
+   above), and either:
+   - a **Questions (JSON)** array to ask the questionnaire directly in DICE after that feed (see
+     the in-form example, covering `single_choice`, `multiple_choice`, `likert`, and `open_text`
+     questions — same shape as `questionnaire_questions` below), or
+   - an **External survey link** to redirect to an outside tool (e.g. Qualtrics) instead.
+
+   Leave a slot's Feed CSV link blank to skip it. At least one step must be filled in — there is
+   no longer an implicit default feed.
+5. Click **Create**. Because a session's `journey_steps` are resolved once, at creation, and then
+   cached (`session.vars["journey_steps_resolved"]`), each session created this way is an
+   immutable snapshot of whatever feeds/questions you configured — starting a new session is how
+   you create a new "version," no separate versioning feature is needed.
+
+The `/demo` nav link is hidden since it isn't meant for running real studies; the route still
+exists but isn't linked from the admin navigation.
+
+### Instagram CSV columns
+
+Organic (non-sponsored) posts use: `username`, `user_image`, `user_description`,
+`user_followers`, `media`, `text`, `likes`, `replies`, `reposts`, `datetime`
+(`DD.MM.YY HH:MM`), `condition`, `doc_id`. Sponsored/CTA posts additionally set `sponsored`
+(truthy) plus `target` (click-through URL), `handle`, and `alt_text`. Other channels
+(`Twitter`, `Stories`, `Linkedin`, `Generic`) expect their own column sets — see the
+corresponding `T_Item_*.html` template in `software/DICE/DICE/`.
 
 ## Recommended Setup
 
@@ -135,11 +175,10 @@ Notes:
 
 DICE supports configurable UI language for the oTree codebase in [`software/DICE/settings.py`](software/DICE/settings.py).
 
-- **Configuration:** set `language = 'pt-br'` in `SESSION_CONFIGS` or `SESSION_CONFIG_DEFAULTS`.
+- **Configuration:** set `language = 'pt-br'` in `SESSION_CONFIGS` or `SESSION_CONFIG_DEFAULTS`, or pick it from the **Language** dropdown on the `/sessions` create-session screen.
 - **Supported values:** `en` (default), `pt-br` (also accepts `pt_br`; matching is case-insensitive).
 - **What is translated:** fixed UI chrome (navigation labels, buttons, default consent form, debrief boilerplate, accessibility strings, and JavaScript fallback messages).
 - **What is not translated:** CSV feed content, `study_name`, `briefing`, custom `consent_form`, and external survey tools such as Qualtrics. Provide those in the target language manually.
-- **Demo sessions:** use `Twitter_PT` or `Instagram_PT` in `SESSION_CONFIGS` to smoke-test Portuguese locally.
 
 
 ## DICE-Lite

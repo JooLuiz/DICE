@@ -1,4 +1,5 @@
 import itertools
+import json
 import re
 from typing import Any, Dict
 
@@ -94,6 +95,15 @@ def preprocess_feed(dataframe: pd.DataFrame, step_config: Dict[str, Any]) -> pd.
     if "sequence" not in dataframe.columns:
         dataframe["sequence"] = np.nan
 
+    # A blank "sponsored" cell is read by pandas as NaN, and bool(float('nan')) is True in
+    # Python -- without this coercion, every organic row would render as sponsored (templates
+    # branch on `{{ if i.sponsored }}`). Coerce to a real boolean so blank/garbage cells are
+    # always falsy, and default missing columns to "not sponsored" rather than erroring.
+    if "sponsored" in dataframe.columns:
+        dataframe["sponsored"] = pd.to_numeric(dataframe["sponsored"], errors="coerce").fillna(0).astype(bool)
+    else:
+        dataframe["sponsored"] = False
+
     return dataframe
 
 
@@ -149,7 +159,10 @@ def prepare_feed_for_round(subsession, step_config: Dict[str, Any]) -> None:
         tweets.sort_values(by="sequence", inplace=True)
         tweets.reset_index(drop=True, inplace=True)
 
-        player.participant.tweets = tweets
+        # default=str covers the raw "datetime" column (pandas Timestamp objects), which isn't
+        # JSON-serializable; this mirrors the implicit str() Jinja already applies today when a
+        # template renders {{ i.datetime }} directly (see T_Item_Mass_Media.html).
+        player.feed_items_json = json.dumps(tweets.to_dict(orient="index"), default=str)
         if "doc_id" in tweets.columns:
             player.sequence = ", ".join(map(str, tweets["doc_id"].tolist()))
         else:

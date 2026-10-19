@@ -1,4 +1,8 @@
+import json
+
 from otree.api import *
+
+import wide_export_columns  # noqa: F401  installs the wide-CSV step column order on import
 
 from .feed_data import prepare_feed_for_round
 from .journey_config import (
@@ -12,7 +16,6 @@ from .questionnaire_bridge import (
     build_survey_link,
     callback_is_valid,
     mark_step_completion,
-    update_prolific_completion_url,
 )
 from .questionnaire_models import feed_round_export_suffix, questionnaire_response_export_rows
 from .pages_questionnaire import E_Questionnaire
@@ -21,6 +24,7 @@ from .ui_strings import (
     get_debrief_context,
     get_js_strings,
     get_template_context,
+    resolve_participant_display_id,
 )
 
 
@@ -32,7 +36,8 @@ Mimic social media feeds with DICE.
 class C(BaseConstants):
     NAME_IN_URL = "DICE"
     PLAYERS_PER_GROUP = None
-    NUM_ROUNDS = 20
+    NUM_ROUNDS = 6  # matches MAX_CONFIGURABLE_JOURNEY_STEPS (session_config_steps.py), the
+                    # form's actual step-slot limit
 
     RULES_TEMPLATE = "DICE/T_Rules.html"
     CONSENT_TEMPLATE = "DICE/T_Consent.html"
@@ -63,6 +68,10 @@ class Player(BasePlayer):
     feed_condition = models.StringField(doc="indicates the feed condition a player is randomly assigned to")
     sequence = models.StringField(doc="prints the sequence of tweets based on doc_id")
     step_id = models.StringField(doc="configured journey step id", blank=True)
+    participant_code_display = models.StringField(
+        doc="participant label if set, else oTree code; shown as the row identity on the Data tab.",
+        blank=True,
+    )
 
     scroll_sequence = models.LongStringField(doc="tracks the sequence of feed items a participant scrolled through.")
     viewport_data = models.LongStringField(doc="tracks the time feed items were visible in a participants viewport.")
@@ -97,6 +106,13 @@ class Player(BasePlayer):
         blank=True,
     )
 
+    feed_items_json = models.LongStringField(
+        blank=True,
+        doc="JSON-encoded feed items for this round, keyed by display order; replaces the "
+        "Participant-level `tweets` field, which incorrectly shared one value across all "
+        "rounds of a session (New sessions require `otree resetdb` after adding this field.)",
+    )
+
 
 def _step_config(player: Player):
     return get_step_config_for_round(
@@ -114,8 +130,13 @@ def creating_session(subsession: Subsession):
         round_number=subsession.round_number,
         max_supported_steps=C.NUM_ROUNDS,
     )
-    if step_config is None:
+    if step_config is None or not step_config.get("data_path"):
         subsession.FEED = ""
+        # step_id is otherwise only written inside prepare_feed_for_round. Questionnaire-only
+        # steps never call that, but the export still filters responses by player.step_id.
+        if step_config is not None:
+            for player in subsession.get_players():
+                player.step_id = step_config["step_id"]
         return
     prepare_feed_for_round(subsession=subsession, step_config=step_config)
 
@@ -167,7 +188,10 @@ class C_Feed(Page):
 
     @staticmethod
     def is_displayed(player):
-        return is_active_round(player.session, player.round_number, C.NUM_ROUNDS)
+        if not is_active_round(player.session, player.round_number, C.NUM_ROUNDS):
+            return False
+        step_config = _step_config(player) or {}
+        return bool(step_config.get("data_path"))
 
     @staticmethod
     def get_form_fields(player: Player):
@@ -194,7 +218,6 @@ class C_Feed(Page):
     def vars_for_template(player: Player):
         label_available = player.participant.label is not None
         step_config = _step_config(player) or {}
-        tweets_df = player.participant.tweets.reset_index(drop=True)
 
         language = player.session.config.get("language", "en")
         context = get_template_context(
@@ -208,7 +231,7 @@ class C_Feed(Page):
         elif channel_type == "Generic":
             context["feed_end_submit_id"] = "submitButton"
         context.update(
-            tweets=tweets_df.to_dict("index"),
+            tweets=json.loads(player.feed_items_json),
             topics=step_config.get("topics", player.session.config["topics"]),
             search_term=step_config.get("search_term", player.session.config["search_term"]),
             label_available=label_available,
@@ -227,9 +250,9 @@ class C_Feed(Page):
     @staticmethod
     def before_next_page(player, timeout_happened):
         player.participant.finished = True
-        update_prolific_completion_url(player.session)
-        if player.id_in_group != 1:
-            player.participant.tweets = ""
+        player.participant_code_display = resolve_participant_display_id(
+            player.participant.code, player.participant.label
+        )
 
 
 class D_Redirect(Page):
@@ -320,6 +343,7 @@ def custom_export(players):
         "likes",
         "replies",
         "reposts",
+        "promoted_clicks",
         "round_number",
         "step_id",
         "questionnaire_completion_mode",
@@ -349,6 +373,7 @@ def custom_export(players):
             player.likes_data,
             player.replies_data,
             player.reposts_data,
+            player.promoted_post_clicks,
             player.round_number,
             player.step_id,
             player.questionnaire_completion_mode,

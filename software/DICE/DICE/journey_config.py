@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from .questionnaire_schema import normalize_questionnaire_questions
+from session_config_steps import build_steps_from_numbered_fields
 
 
 JourneyStep = Dict[str, Any]
@@ -52,7 +53,11 @@ def _normalize_step(raw_step: Dict[str, Any], step_index: int, session_config: D
 
 
 def resolve_journey_steps(session_config: Dict[str, Any], max_supported_steps: int) -> List[JourneyStep]:
+    # Priority: explicit journey_steps (settings.py) > numbered step_N_* fields (entered on
+    # the /sessions create-session page) > single legacy step (pre-journey fallback).
     configured_steps = session_config.get("journey_steps") or []
+    if not configured_steps:
+        configured_steps = build_steps_from_numbered_fields(session_config)
     if not configured_steps:
         configured_steps = [_default_legacy_step(session_config)]
 

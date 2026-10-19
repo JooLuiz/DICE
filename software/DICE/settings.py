@@ -1,19 +1,24 @@
 from os import environ
 
+from session_config_steps import MAX_CONFIGURABLE_JOURNEY_STEPS
+
 SESSION_CONFIGS = [
     dict(
         name='Twitter',
         app_sequence=['DICE'],
         num_demo_participants=3,
-        channel_type="Twitter", # "Twitter_Replies",
-        language="pt-br"
+        channel_type="Twitter",
     ),
     dict(
         name='Instagram',
         app_sequence=['DICE'],
-        num_demo_participants=3,
+        num_demo_participants=1,
         channel_type="Insta",
-        language="pt-br"
+        # journey_steps is intentionally left unset here: when creating a real session from
+        # /sessions, the step_N_* fields (filled in on that page, via the "Journey Steps" UI
+        # section) are assembled into journey_steps automatically by
+        # session_config_steps.build_steps_from_numbered_fields.
+        # See the "Running a Real Study Without Editing Code" section in README.md.
     ),
     dict(
         name='Stories',
@@ -21,104 +26,18 @@ SESSION_CONFIGS = [
         num_demo_participants=3,
         channel_type="Stories",
         story_duration=7,  # seconds each story is displayed before auto-advancing
-        language="pt-br"
     ),
     dict(
         name='Linkedin',
         app_sequence=['DICE'],
         num_demo_participants=3,
         channel_type="Linkedin",
-        language="pt-br"
     ),
     dict(
         name='Generic',
         app_sequence=['DICE'],
         num_demo_participants=3,
         channel_type="Generic",
-        language="pt-br"
-    ),
-    dict(
-        name='Twitter_PT',
-        app_sequence=['DICE'],
-        num_demo_participants=3,
-        channel_type="Twitter",
-        language='pt-br',
-    ),
-    dict(
-        name='Instagram_PT',
-        app_sequence=['DICE'],
-        num_demo_participants=3,
-        channel_type="Insta",
-        language='pt-br',
-    ),
-    dict(
-        name='InstagramInternalQuestionnaire',
-        app_sequence=['DICE'],
-        num_demo_participants=1,
-        journey_steps=[
-            dict(
-                step_id="feed_1",
-                channel_type="Insta",
-                questionnaire_mode="internal",
-                questionnaire_id="feed_1_followup",
-                questionnaire_questions=[
-                    dict(
-                        question_id="enjoyment",
-                        prompt="How much did you enjoy this feed?",
-                        question_type="likert",
-                        likert_min=1,
-                        likert_max=5,
-                        likert_min_label="Not at all",
-                        likert_max_label="Very much",
-                    ),
-                    dict(
-                        question_id="recalled_posts",
-                        prompt="Which topics do you remember from the posts you just saw?",
-                        question_type="multiple_choice",
-                        is_required=False,
-                        options=[
-                            dict(value="travel", label="Travel"),
-                            dict(value="food", label="Food"),
-                            dict(value="fitness", label="Fitness"),
-                            dict(value="none", label="None of these"),
-                        ],
-                    ),
-                    dict(
-                        question_id="first_impression",
-                        prompt="What are your first thoughts about this feed?",
-                        question_type="open_text",
-                        is_required=False,
-                    ),
-                ],
-            ),
-            dict(
-                step_id="feed_2",
-                channel_type="Insta",
-                questionnaire_mode="internal",
-                questionnaire_id="feed_2_followup",
-                questionnaire_questions=[
-                    dict(
-                        question_id="enjoyment",
-                        prompt="How much did you enjoy this second feed?",
-                        question_type="likert",
-                        likert_min=1,
-                        likert_max=5,
-                        likert_min_label="Not at all",
-                        likert_max_label="Very much",
-                    ),
-                    dict(
-                        question_id="preferred_feed",
-                        prompt="Compared to the first feed, which did you prefer?",
-                        question_type="single_choice",
-                        options=[
-                            dict(value="feed_1", label="The first feed"),
-                            dict(value="feed_2", label="This feed"),
-                            dict(value="no_preference", label="No preference"),
-                        ],
-                    ),
-                ],
-            ),
-        ],
     ),
 ]
 
@@ -135,7 +54,8 @@ SESSION_CONFIG_DEFAULTS = dict(
     eMail = '',
     study_name = 'A study about social media',
     channel_type = 'Twitter',
-    survey_link = 'https://unisg.qualtrics.com/jfe/form/SV_0DnMoLpM0VxjhrM',
+    survey_link = '',  # legacy single-step fallback; configure per step via Journey Steps instead
+    completion_redirect_url = '',  # optional; shown as a button on the final debrief page
     journey_steps = [],
     max_journey_steps = 20,
     return_param_name = 'return_url',
@@ -148,12 +68,12 @@ SESSION_CONFIG_DEFAULTS = dict(
     skip_briefing = False,
     briefing = '', # '<h5>This could be your briefing</h5><p>Use HTML syntax to format your content to your liking.</p>',
     consent_form = '',
-    data_path=  "https://raw.githubusercontent.com/DICE-app/sample-feeds/refs/heads/main/feeds/sample_2x2_brand_safety.csv", #'DICE/static/data/sample_tweets.csv', #'DICE/static/data/9gag.csv', #  "https://raw.githubusercontent.com/Howquez/DICE/main/studies/frequency_capping/stimuli/brazil_pretest.csv",
+    data_path='',  # legacy single-step fallback; configure per step via Journey Steps instead
     delimiter=';',
     sort_by='datetime',
     condition_col='condition',
     search_term = "@9GAG", #"'#Yosemite',
-    language = 'en',  # 'pt-br' — translates fixed UI; set briefing/consent_form/study_name/CSV in target language
+    language = 'pt-br',  # 'en' — translates fixed UI; set briefing/consent_form/study_name/CSV in target language
 
     # Legacy ?
     topics = True,
@@ -163,17 +83,25 @@ SESSION_CONFIG_DEFAULTS = dict(
     cta_text = '', # 'Post Jobs Free',
     # landing_page = 'https://unisg.qualtrics.com/jfe/form/SV_0DnMoLpM0VxjhrM',
 
+    # Numbered journey step slots, editable on the /sessions create-session page for every
+    # config via the "Journey Steps" UI section. A slot is used when it has a feed CSV, a
+    # survey link, or a questionnaire JSON; a slot with all three blank is skipped.
+    # See session_config_steps.py and the "Running a Real Study Without Editing Code" section
+    # in README.md.
+    **{
+        f"step_{slot_index}_{suffix}": ""
+        for slot_index in range(1, MAX_CONFIGURABLE_JOURNEY_STEPS + 1)
+        for suffix in ("feed_csv_url", "survey_link", "questionnaire_json")
+    },
 )
 
 PARTICIPANT_FIELDS = [
-    'tweets',
     'finished',
     'journey_steps_resolved',
     'journey_current_step',
     'journey_completed_steps',
     'journey_step_tokens',
 ]
-SESSION_FIELDS = ['prolific_completion_url', 'completion_code']
 
 # ISO-639 code
 # for example: de, fr, ja, ko, zh-hans

@@ -56,14 +56,12 @@
                             </tbody>
                         </table>
                         <p class="text-center text-secondary mb-4">
-                            {{ if session.prolific_completion_url == 'NA'}}
-                            <button class="btn btn-success shadow">
-                                {{ ui.debrief_complete }}
-                            </button>
-                            {{ else }}
-                            <a class="btn btn-success shadow" href="{{ session.prolific_completion_url }}" role="button">
+                            {{ if completion_redirect_url }}
+                            <a class="btn btn-success shadow" href="{{ completion_redirect_url }}" role="button">
                                 {{ ui.debrief_complete }}
                             </a>
+                            {{ else }}
+                            <span>{{ ui.debrief_close_tab }}</span>
                             {{ endif }}
                         </p>
                     </div>
