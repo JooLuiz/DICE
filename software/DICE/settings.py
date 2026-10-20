@@ -115,6 +115,6 @@ ADMIN_USERNAME = 'admin'
 # for security, best to set admin password in an environment variable
 ADMIN_PASSWORD = environ.get('OTREE_ADMIN_PASSWORD')
 
-DEMO_PAGE_INTRO_HTML = """ Welcome """
+DEMO_PAGE_INTRO_HTML = """ Bem-Vinda Anna! """
 
-SECRET_KEY = '8744261096089'
+SECRET_KEY = environ.get('OTREE_SECRET_KEY')
