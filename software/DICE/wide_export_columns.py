@@ -10,7 +10,12 @@ import re
 import otree.export
 
 # Same suffix order as the step_N_* fields built in settings.SESSION_CONFIG_DEFAULTS.
-STEP_FIELD_SUFFIXES = ("feed_csv_url", "survey_link", "questionnaire_json")
+STEP_FIELD_SUFFIXES = (
+    "feed_csv_url",
+    "survey_link",
+    "questionnaire_json",
+    "questionnaire_title",
+)
 
 _STEP_COLUMN = re.compile(
     r"^session\.config\.step_(\d+)_(" + "|".join(STEP_FIELD_SUFFIXES) + r")$"

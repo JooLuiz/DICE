@@ -12,6 +12,7 @@ from .core import (
     get_ui,
     normalize_language,
     resolve_participant_display_id,
+    resolve_questionnaire_title,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     'get_ui',
     'normalize_language',
     'resolve_participant_display_id',
+    'resolve_questionnaire_title',
 ]

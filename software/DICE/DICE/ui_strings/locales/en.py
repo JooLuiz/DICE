@@ -112,6 +112,9 @@ EN_STRINGS: dict[str, str] = {
     ),
     'intro_consent_link': 'consent form.',
     'intro_start': 'Start',
+    'room_start_message_default': (
+        'This study will begin after you confirm that you want to participate.'
+    ),
     # Study flow — briefing
     'briefing_next': 'Next',
     # Study flow — redirect
@@ -150,4 +153,6 @@ EN_STRINGS: dict[str, str] = {
     ),
     'debrief_complete': 'Click here to complete the survey',
     'debrief_close_tab': 'You can now close this tab.',
+    # Internal questionnaire
+    'questionnaire_title_default': 'A few quick questions',
 }

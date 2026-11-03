@@ -91,9 +91,20 @@ SESSION_CONFIG_DEFAULTS = dict(
     **{
         f"step_{slot_index}_{suffix}": ""
         for slot_index in range(1, MAX_CONFIGURABLE_JOURNEY_STEPS + 1)
-        for suffix in ("feed_csv_url", "survey_link", "questionnaire_json")
+        for suffix in ("feed_csv_url", "survey_link", "questionnaire_json", "questionnaire_title")
     },
 )
+
+# Hooks consumed by DICE's pinned oTree 5.11.5 fork. They are strings so framework startup
+# does not import DICE dynamic-room persistence until a route actually needs it.
+ROOM_REGISTRY_LOADER = 'DICE.dynamic_rooms.load_dynamic_room'
+ROOM_REGISTRY_LISTER = 'DICE.dynamic_rooms.list_dynamic_rooms'
+DYNAMIC_ROOM_FORM_CONTEXT = 'DICE.dynamic_rooms.create_form_context'
+DYNAMIC_ROOM_LIST_CONTEXT = 'DICE.dynamic_rooms.room_list_context'
+DYNAMIC_ROOM_CREATE = 'DICE.dynamic_rooms.create_room_from_submission'
+DYNAMIC_ROOM_DELETE = 'DICE.dynamic_rooms.delete_dynamic_room'
+ROOM_START_PRESENTATION = 'DICE.dynamic_rooms.room_start_presentation'
+SESSION_FIELD_HELP = 'session_field_help.help_text'
 
 PARTICIPANT_FIELDS = [
     'finished',

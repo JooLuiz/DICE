@@ -1,3 +1,10 @@
+"""Resolves a session's journey steps into the normalized dicts pages consume.
+
+Role: applies defaults, limits, and questionnaire validation to raw journey config.
+Not in this file: rendering questionnaires and writing player identity fields.
+Key dependencies: DICE.questionnaire_schema, session_config_steps.
+See also: software/DICE/tests/test_journey_config.py, software/DICE/settings.py.
+"""
 from typing import Any, Dict, List, Optional
 
 from .questionnaire_schema import normalize_questionnaire_questions
@@ -22,11 +29,13 @@ def _default_legacy_step(session_config: Dict[str, Any]) -> JourneyStep:
         "return_strategy": session_config.get("default_return_strategy", "auto_or_manual"),
         "questionnaire_mode": session_config.get("default_questionnaire_mode", "external"),
         "questionnaire_id": session_config.get("questionnaire_id", ""),
+        "questionnaire_title": session_config.get("questionnaire_title", ""),
         "questionnaire_questions": session_config.get("questionnaire_questions", []),
     }
 
 
 def _normalize_step(raw_step: Dict[str, Any], step_index: int, session_config: Dict[str, Any]) -> JourneyStep:
+    """Returns one step with defaults applied and its questionnaire title stripped."""
     legacy_defaults = _default_legacy_step(session_config)
     normalized_step = dict(legacy_defaults)
     normalized_step.update(raw_step)
@@ -39,6 +48,7 @@ def _normalize_step(raw_step: Dict[str, Any], step_index: int, session_config: D
 
     normalized_step["questionnaire_mode"] = str(normalized_step.get("questionnaire_mode") or "external")
     normalized_step["questionnaire_id"] = str(normalized_step.get("questionnaire_id") or "")
+    normalized_step["questionnaire_title"] = str(normalized_step.get("questionnaire_title") or "").strip()
     normalized_step["questionnaire_questions"] = normalize_questionnaire_questions(
         raw_questions=normalized_step.get("questionnaire_questions"),
         step_id=normalized_step["step_id"],

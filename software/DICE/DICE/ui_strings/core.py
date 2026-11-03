@@ -1,4 +1,10 @@
-"""Language resolution and template context helpers for DICE UI strings."""
+"""Language resolution and template context helpers for DICE UI strings.
+
+Role: resolves session language and the fixed strings shown in study-flow templates.
+Not in this file: journey-step configuration and questionnaire answer storage.
+Key dependencies: DICE.ui_strings.locales.en, DICE.ui_strings.locales.pt_br.
+See also: software/DICE/tests/test_ui_strings.py.
+"""
 
 from typing import Any
 
@@ -28,6 +34,22 @@ def normalize_language(language: str | None) -> str:
 
 def get_ui(language: str | None) -> dict[str, str]:
     return UI_STRINGS[normalize_language(language)]
+
+
+def resolve_questionnaire_title(language: str | None, configured_title: str | None) -> str:
+    """Returns the heading shown on an internal questionnaire page.
+
+    Args:
+        language: Session language (`en`, `pt-br`, or an unrecognized code such as `en-us`).
+        configured_title: Researcher-authored title. Blank or None selects the locale default.
+
+    Returns:
+        The stripped configured title, otherwise the default for the resolved session language.
+    """
+    authored_title = str(configured_title or "").strip()
+    if authored_title:
+        return authored_title
+    return get_ui(language)["questionnaire_title_default"]
 
 
 def resolve_participant_display_id(

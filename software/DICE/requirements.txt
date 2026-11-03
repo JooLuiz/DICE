@@ -1,6 +1,7 @@
 # oTree-may-not-overwrite-this-file
 
-otree>=5.11.0,<6.0
+# DICE's vendored oTree 5.11.5 fork adds database-backed room lookup and Start confirmation.
+-e ./vendor/otree-5.11.5
 psycopg2>=2.8.4
 sentry-sdk>=0.7.9
 

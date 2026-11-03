@@ -1,0 +1,18 @@
+{% extends "otree/BaseAdmin.html" %}
+
+{% block title %}
+  Room: {{ room.display_name }}
+{% endblock %}
+
+{% block content %}
+  <div class="alert alert-warning">
+    This room has no associated session. Its permanent link will display a waiting page until a
+    session is created here.
+  </div>
+
+  <h3>Create a new session</h3>
+  {% include "otree/includes/CreateSessionForm.html" %}
+
+  <hr>
+  {% include "otree/includes/RoomParticipantLinks.html" %}
+{% endblock %}

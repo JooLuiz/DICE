@@ -26,6 +26,7 @@ function handleCarouselSlide(event) {
 // Finalize the timing for the previous item
 function finalizePreviousItem() {
     if (visibleCarouselItem.id !== null) {
+        // duration is decimal seconds (millisecond timestamps divided by 1000).
         const duration = (Date.now() - visibleCarouselItem.startTime) / 1000;
         if (duration > 0.1) { // Ignore durations shorter than 0.1 seconds
             carouselVisibilityData.push({

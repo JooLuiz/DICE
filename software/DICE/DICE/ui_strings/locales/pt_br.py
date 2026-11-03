@@ -100,6 +100,9 @@ PT_BR_STRINGS: dict[str, str] = {
     ),
     'intro_consent_link': 'formulário de consentimento.',
     'intro_start': 'Começar',
+    'room_start_message_default': (
+        'Este estudo começará depois que você confirmar que deseja participar.'
+    ),
     'briefing_next': 'Próximo',
     'redirect_wait': 'Você está sendo redirecionado(a), por favor, aguarde...',
     'redirect_fallback': (
@@ -135,4 +138,5 @@ PT_BR_STRINGS: dict[str, str] = {
     ),
     'debrief_complete': 'Clique aqui para concluir a pesquisa',
     'debrief_close_tab': 'Você já pode fechar esta aba.',
+    'questionnaire_title_default': 'Algumas perguntas rápidas',
 }

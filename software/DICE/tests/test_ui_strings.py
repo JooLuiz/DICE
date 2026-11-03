@@ -10,6 +10,7 @@ from DICE.ui_strings import (
     get_template_context,
     normalize_language,
     resolve_participant_display_id,
+    resolve_questionnaire_title,
 )
 
 
@@ -45,6 +46,33 @@ class ResolveParticipantDisplayIdTests(unittest.TestCase):
 
     def test_returns_none_when_both_missing(self):
         self.assertIsNone(resolve_participant_display_id(None, None))
+
+
+class ResolveQuestionnaireTitleTests(unittest.TestCase):
+    def test_configured_title_overrides_the_locale_default(self):
+        # A researcher-authored title is shown even when the session language has a default.
+        self.assertEqual(
+            resolve_questionnaire_title('pt-br', '  Avalie este feed  '),
+            'Avalie este feed',
+        )
+
+    def test_blank_title_uses_the_portuguese_default(self):
+        # pt-br sessions without a configured title must not keep the English heading.
+        self.assertEqual(
+            resolve_questionnaire_title('pt-br', '   '),
+            UI_STRINGS['pt-br']['questionnaire_title_default'],
+        )
+
+    def test_blank_title_uses_the_english_default(self):
+        # Missing and en-us both resolve through the English catalog.
+        self.assertEqual(
+            resolve_questionnaire_title('en', None),
+            'A few quick questions',
+        )
+        self.assertEqual(
+            resolve_questionnaire_title('en-us', ''),
+            'A few quick questions',
+        )
 
 
 class GetConsentDefaultTemplateTests(unittest.TestCase):

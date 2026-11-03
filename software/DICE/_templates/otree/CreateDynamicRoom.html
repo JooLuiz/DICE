@@ -1,0 +1,54 @@
+{% extends "otree/BaseAdmin.html" %}
+
+{% block title %}
+  Create room
+{% endblock %}
+
+{% block content %}
+  <h4>Create a persistent room</h4>
+  <p>The room link opens a Start page before a participant slot is assigned.</p>
+
+  {% if error_message %}
+    <div class="alert alert-danger">{{ error_message }}</div>
+  {% endif %}
+
+  <form method="post" action="{{ create_room_url }}">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label" for="room-name">Room name</label>
+      <input class="form-control" id="room-name" name="name" required
+             pattern="[A-Za-z0-9_]+" maxlength="100"
+             value="{{ submitted_name }}"
+             placeholder="forum_study">
+      <p class="help-block">Letters, numbers, and underscores only. The public address is /room/&lt;name&gt;.</p>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label" for="room-display-name">Display name</label>
+      <input class="form-control" id="room-display-name" name="display_name" required
+             maxlength="100" value="{{ submitted_display_name }}" placeholder="Forum study">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label" for="room-start-message">Confirmation message</label>
+      <textarea class="form-control" id="room-start-message" name="start_message"
+                maxlength="500" rows="3">{{ submitted_start_message }}</textarea>
+      <p class="help-block">Shown before the Start button. Leave blank to use the session language.</p>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label" for="room-session">Session</label>
+      <select class="form-select" id="room-session" name="session_code">
+        <option value="">No session yet</option>
+        {% for session in available_sessions %}
+          <option value="{{ session.code }}" {% if session.code == selected_session_code %}selected{% endif %}>
+            {{ session.option_label }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button class="btn btn-primary" type="submit">Create room</button>
+    <a class="btn btn-secondary" href="{% url 'Rooms' %}">Cancel</a>
+  </form>
+{% endblock %}

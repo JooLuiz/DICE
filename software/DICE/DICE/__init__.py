@@ -4,6 +4,7 @@ from otree.api import *
 
 import wide_export_columns  # noqa: F401  installs the wide-CSV step column order on import
 
+from .dynamic_rooms import DynamicRoom  # noqa: F401  registers dynamic room metadata with oTree
 from .feed_data import prepare_feed_for_round
 from .journey_config import (
     get_or_create_journey_steps,
@@ -19,12 +20,12 @@ from .questionnaire_bridge import (
 )
 from .questionnaire_models import feed_round_export_suffix, questionnaire_response_export_rows
 from .pages_questionnaire import E_Questionnaire
+from .player_round_identity import assign_round_identity
 from .ui_strings import (
     get_consent_default_template,
     get_debrief_context,
     get_js_strings,
     get_template_context,
-    resolve_participant_display_id,
 )
 
 
@@ -74,7 +75,9 @@ class Player(BasePlayer):
     )
 
     scroll_sequence = models.LongStringField(doc="tracks the sequence of feed items a participant scrolled through.")
-    viewport_data = models.LongStringField(doc="tracks the time feed items were visible in a participants viewport.")
+    viewport_data = models.LongStringField(
+        doc="JSON list of {doc_id, duration}; duration is how long the item was visible, in decimal seconds.",
+    )
     rowheight_data = models.LongStringField(doc="tracks the time feed items were visible in a participants viewport.")
     likes_data = models.LongStringField(doc="tracks likes.", blank=True)
     replies_data = models.LongStringField(doc="tracks replies.", blank=True)
@@ -130,13 +133,11 @@ def creating_session(subsession: Subsession):
         round_number=subsession.round_number,
         max_supported_steps=C.NUM_ROUNDS,
     )
+    if step_config is not None:
+        for player in subsession.get_players():
+            assign_round_identity(player, step_config)
     if step_config is None or not step_config.get("data_path"):
         subsession.FEED = ""
-        # step_id is otherwise only written inside prepare_feed_for_round. Questionnaire-only
-        # steps never call that, but the export still filters responses by player.step_id.
-        if step_config is not None:
-            for player in subsession.get_players():
-                player.step_id = step_config["step_id"]
         return
     prepare_feed_for_round(subsession=subsession, step_config=step_config)
 
@@ -250,9 +251,7 @@ class C_Feed(Page):
     @staticmethod
     def before_next_page(player, timeout_happened):
         player.participant.finished = True
-        player.participant_code_display = resolve_participant_display_id(
-            player.participant.code, player.participant.label
-        )
+        assign_round_identity(player, _step_config(player))
 
 
 class D_Redirect(Page):
@@ -306,6 +305,7 @@ class D_Redirect(Page):
 
         player.callback_valid = callback_valid
         player.questionnaire_completion_mode = completion_mode
+        assign_round_identity(player, step_config)
         mark_step_completion(
             player=player,
             step_id=step_id,
@@ -339,7 +339,7 @@ def custom_export(players):
         "condition",
         "item_sequence",
         "scroll_sequence",
-        "item_dwell_time",
+        "item_dwell_time_seconds",
         "likes",
         "replies",
         "reposts",

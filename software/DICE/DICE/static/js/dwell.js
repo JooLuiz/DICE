@@ -28,6 +28,7 @@ function handleRowVisibility(entries, observer) {
         } else {
             // Row is not visible
             if (visibleRows[index]) {
+                // duration is decimal seconds (millisecond timestamps divided by 1000).
                 const duration = (currentTime - visibleRows[index]) / 1000;
                 rowVisibilityData.push({ doc_id: index, duration: Number(duration.toFixed(3)) });
                 delete visibleRows[index];

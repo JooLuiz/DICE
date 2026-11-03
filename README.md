@@ -18,7 +18,7 @@ It provides guidance on how to utilize the tool for creating and customizing dyn
 
 - Stable and Fully Randomized Group Assignment: Each participant in a study is assigned to an experimental condition through a randomization process. This contrasts with the non-randomized approaches often found in observational and platform studies.
 - Exposure to Rich, Interactive Context: Unlike static vignette studies, participants engage with a dynamic and immersive environment. Additionally, unlike observational and platform studies, researchers maintain full control over the context of the study.
-- Advanced Metrics for Researchers: DICE provides novel metrics, including latent measures like per-item dwell time. These metrics can be integrated with direct responses such as likes or comments, and supplemented with post-experiment survey data, offering a more comprehensive analysis than traditional vignette, observational, and platform studies.
+- Advanced Metrics for Researchers: DICE provides novel metrics, including latent measures like per-item dwell time. `viewport_data` (and the custom-export column `item_dwell_time_seconds`) stores each item's visible time as decimal seconds in `{doc_id, duration}` objects. These metrics can be integrated with direct responses such as likes or comments, and supplemented with post-experiment survey data, offering a more comprehensive analysis than traditional vignette, observational, and platform studies.
 - Facilitation of Replicability: The researcher exercises complete control over the content and its delivery, ensuring thorough documentation. This feature simplifies the process of replicating stimuli presented in the study, a notable advantage over platform studies where such control and documentation may be limited.
 
 ## Usage
@@ -87,6 +87,7 @@ dict(
     data_path="https://raw.githubusercontent.com/.../step_1.csv",
     questionnaire_mode="internal",
     questionnaire_id="feed_1_followup",   # any label; included in the export
+    questionnaire_title="Your feedback",  # optional; blank uses the session language default
     questionnaire_questions=[
         dict(
             question_id="enjoyment",
@@ -118,10 +119,16 @@ dict(
 ```
 
 Notes:
+- `questionnaire_title` is optional. A non-blank value is shown as written. Leave it blank to use
+  "A few quick questions" when the session language is `en`, or "Algumas perguntas rápidas" when
+  it is `pt-br`. On the `/sessions` form this is the **Questionnaire title** field for that step.
+- Single-choice and multiple-choice options render one per line. Likert scales stay horizontal.
 - `question_id` is optional; if omitted, one is generated from the step id and question order.
 - `is_required` defaults to `True`.
 - Answers are stored per question and included in the data export (one row per answered question,
   with `record_type="questionnaire_response"`, alongside the regular per-round feed export rows).
+- The custom-export dwell column is `item_dwell_time_seconds`. `duration` inside `viewport_data`
+  is decimal seconds, not milliseconds.
 - You don't need to hand-write this in `settings.py` to try it out — the **Journey Steps** UI
   described below lets you configure an internal questionnaire for any step directly on the
   `/sessions` create-session screen.
@@ -143,7 +150,8 @@ channel.
    above), and either:
    - a **Questions (JSON)** array to ask the questionnaire directly in DICE after that feed (see
      the in-form example, covering `single_choice`, `multiple_choice`, `likert`, and `open_text`
-     questions — same shape as `questionnaire_questions` below), or
+     questions — same shape as `questionnaire_questions` below), plus an optional
+     **Questionnaire title** (leave blank to follow the session language), or
    - an **External survey link** to redirect to an outside tool (e.g. Qualtrics) instead.
 
    Leave a slot's Feed CSV link blank to skip it. At least one step must be filled in — there is
@@ -155,6 +163,35 @@ channel.
 
 The `/demo` nav link is hidden since it isn't meant for running real studies; the route still
 exists but isn't linked from the admin navigation.
+
+## Persistent Rooms
+
+Researchers can create a persistent room from the **Rooms** tab or from a session's start-links
+page. A room has a stable public address of the form `/room/<name>` and can be associated with
+one session at a time. The Rooms page shows the current association; the room page shows the
+associated session and its monitor link.
+
+Unlike oTree's stock room link, opening a DICE room link only displays a confirmation page.
+The button follows the attached session's language (`Start` in English, `Começar` in Portuguese).
+The confirmation sentence can be set when the room is created; a blank sentence uses that same
+language. The participant slot is assigned only after the visitor submits that button. This prevents
+ordinary forum previews and link crawlers from consuming single-use participant slots. Study
+consent remains on the participant's existing first page and is not replaced by this confirmation.
+
+To reuse a room, detach its current session from the room page, then create or attach another
+unassigned session. Personal participant links already issued for the old session continue to
+belong to that old session.
+
+Dynamic rooms require DICE's pinned local fork of oTree 5.11.5 in
+`software/DICE/vendor/otree-5.11.5`. Install dependencies from
+`software/DICE/requirements.txt`; do not replace the editable oTree requirement with an upstream
+PyPI release, because the upstream release does not load database-created room names or defer
+assignment until the Start submission.
+
+`DynamicRoom` stores each room and its optional confirmation sentence. For a local development
+database created before that sentence column existed, run `otree resetdb` before testing this
+feature. Before deploying against a database containing live data, export/backup it and apply an
+approved schema-migration procedure; `otree resetdb` deletes all study data.
 
 ### Instagram CSV columns
 

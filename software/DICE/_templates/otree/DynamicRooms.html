@@ -1,0 +1,45 @@
+{% extends "otree/BaseAdmin.html" %}
+
+{% block title %}
+  Dynamic rooms
+{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Dynamic rooms</h4>
+    <a class="btn btn-primary" href="{{ create_room_url }}">Create room</a>
+  </div>
+
+  {% if error_message %}
+    <div class="alert alert-danger">{{ error_message }}</div>
+  {% endif %}
+
+  {% if rooms %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Room</th>
+          <th>Associated session</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for room in rooms %}
+          <tr>
+            <td>{{ room.display_name }} (/room/{{ room.name }})</td>
+            <td>
+              {% if room.session_code %}
+                {{ room.session_code }}{% if room.session_config_name %} ({{ room.session_config_name }}){% endif %}
+              {% else %}
+                Unassigned
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No dynamic rooms have been created.</p>
+  {% endif %}
+
+  <a class="btn btn-secondary" href="{% url 'Rooms' %}">Back to rooms</a>
+{% endblock %}

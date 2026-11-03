@@ -1,0 +1,53 @@
+{% extends "otree/BaseAdmin.html" %}
+
+{% block title %}
+  Rooms
+{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Current rooms</h4>
+    {% if dynamic_rooms_enabled %}
+      <a class="btn btn-primary" href="{% url 'CreateDynamicRoom' %}">Create room</a>
+    {% endif %}
+  </div>
+
+  {% if room_sessions %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Room</th>
+          <th>Permanent link</th>
+          <th>Associated session</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for room, session in room_sessions %}
+          <tr>
+            <td><a href="{% url 'RoomWithoutSession' room.name %}">{{ room.display_name }}</a></td>
+            <td><a href="{% url 'AssignVisitorToRoom' room.name %}" target="_blank">/room/{{ room.name }}</a></td>
+            <td>
+              {% if session %}
+                {% if session.label %}{{ session.label }} — {% endif %}<a href="{% url 'SessionMonitor' session.code %}">{{ session.code }}</a>
+                {% if session.config.name %}({{ session.config.name }}){% endif %}
+              {% else %}
+                Unassigned
+              {% endif %}
+            </td>
+            <td>
+              {% if room.is_dynamic and not session %}
+                <form method="post" action="{% url 'DeleteDynamicRoom' room.name %}">
+                  {% csrf_token %}
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Delete</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No rooms have been created.</p>
+  {% endif %}
+{% endblock %}

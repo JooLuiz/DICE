@@ -5,7 +5,8 @@ questionnaire -> ...) directly on oTree's native "create session" page at /sessi
 editing settings.py, for any session config (Twitter, Instagram, Stories, Linkedin, Generic).
 oTree's session-creation form can only render plain scalar (str/int/float/bool) fields, so each
 step is exposed as a fixed, numbered group of fields (step_1_feed_csv_url, step_1_survey_link,
-step_1_questionnaire_json, step_2_..., etc.) rather than as a single dynamic list.
+step_1_questionnaire_json, step_1_questionnaire_title, step_2_..., etc.) rather than as a single
+dynamic list.
 
 Every step in a session shares that session's own channel_type (e.g. a session created from the
 "Twitter" config gets Twitter-rendered steps, "Instagram" gets Insta-rendered steps); mixing
@@ -50,14 +51,16 @@ def build_steps_from_numbered_fields(session_config: Dict[str, Any]) -> List[Dic
         feed_csv_url = _field(session_config, slot_index, "feed_csv_url")
         survey_link = _field(session_config, slot_index, "survey_link")
         questionnaire_json = _field(session_config, slot_index, "questionnaire_json")
+        questionnaire_title = _field(session_config, slot_index, "questionnaire_title")
         if not (feed_csv_url or survey_link or questionnaire_json):
-            continue  # genuinely unused slot
+            continue  # genuinely unused slot; a title alone does not create a step
 
         step: Dict[str, Any] = {
             "step_id": f"step_{slot_index}",
             "channel_type": session_config.get("channel_type", "Insta"),
             "data_path": feed_csv_url,
             "survey_link": survey_link,
+            "questionnaire_title": questionnaire_title,
         }
 
         if questionnaire_json:

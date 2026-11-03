@@ -1,0 +1,31 @@
+{% extends "otree/BaseAdmin.html" %}
+
+{% block title %}
+  Room: {{ room.display_name }}
+{% endblock %}
+
+{% block content %}
+  <form method="post" action="{% url 'CloseRoom' room.name %}">
+    {% csrf_token %}
+    <div class="row">
+      <div class="col">
+        <div class="alert alert-success">
+          <p>
+            Associated session:
+            <a href="{{ session_url }}">{{ session.code }}</a>
+            {% if session.config.name %}({{ session.config.name }}){% endif %}
+          </p>
+          <p class="mb-0">
+            Permanent link:
+            <a href="{{ room_wide_url }}" target="_blank">{{ room_wide_url }}</a>
+          </p>
+        </div>
+      </div>
+      <div class="col">
+        <button class="btn btn-secondary" id="close-room">Detach session</button>
+      </div>
+    </div>
+  </form>
+
+  {% include "otree/includes/RoomParticipantLinks.html" %}
+{% endblock %}

@@ -35,6 +35,11 @@ this file legible at the cost of that "Updated N row(s)" messaging.
 
     var QUESTIONNAIRE_JSON_FIELD = "questionnaire_answers_json";
 
+    // Display labels for fields whose stored name does not state the unit.
+    var FIELD_DISPLAY_LABELS = {
+        viewport_data: "viewport_data (seconds)",
+    };
+
     // Shown first, pinned, in both the Interaction and Questionnaire tables.
     var IDENTITY_FIELDS = ["participant_code_display", "step_id"];
 
@@ -42,6 +47,10 @@ this file legible at the cost of that "Updated N row(s)" messaging.
 
     function indexOfField(headers, fieldName) {
         return headers.indexOf(fieldName);
+    }
+
+    function displayLabel(fieldName) {
+        return FIELD_DISPLAY_LABELS[fieldName] || fieldName;
     }
 
     function parseQuestionnaireAnswers(rawValue) {
@@ -97,7 +106,7 @@ this file legible at the cost of that "Updated N row(s)" messaging.
     function buildStaticTable($table, headers, rows, columnIndices) {
         var $thead = $table.find("thead").empty();
         var $tbody = $table.find("tbody").empty();
-        $thead.append(buildHeaderRow(columnIndices.map(function (i) { return headers[i]; })));
+        $thead.append(buildHeaderRow(columnIndices.map(function (i) { return displayLabel(headers[i]); })));
         rows.forEach(function (row) {
             var $tr = $("<tr>");
             columnIndices.forEach(function (columnIndex) {
@@ -111,8 +120,8 @@ this file legible at the cost of that "Updated N row(s)" messaging.
 
     function buildQuestionnaireTable($table, headers, rows, identityIndices, staticIndices, jsonIndex) {
         var questionIds = jsonIndex === -1 ? [] : collectQuestionIds(rows, jsonIndex);
-        var columnLabels = identityIndices.map(function (i) { return headers[i]; })
-            .concat(staticIndices.map(function (i) { return headers[i]; }))
+        var columnLabels = identityIndices.map(function (i) { return displayLabel(headers[i]); })
+            .concat(staticIndices.map(function (i) { return displayLabel(headers[i]); }))
             .concat(questionIds);
 
         var $thead = $table.find("thead").empty();

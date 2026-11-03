@@ -17,7 +17,8 @@
             <div class="col-sm-10 col-md-8 col-lg-6">
                 <div class="card rounded mt-3 shadow-lg">
                     <div class="card-body p-5">
-                        <h4 class="mb-4">A few quick questions</h4>
+                        <!-- questionnaire_title is the resolved heading. Single-choice options stack vertically; Likert stays horizontal. -->
+                        <h4 class="mb-4">{{ questionnaire_title }}</h4>
 
                         {{ for question in questions }}
                         <div class="mb-4 questionnaire-question"
@@ -38,10 +39,10 @@
                             </div>
                             {{ endfor }}
 
-                            {{ else }}
-                            <div class="d-flex flex-wrap {{ if question.question_type == "likert" }}justify-content-between{{ endif }} gap-2">
+                            {{ elif question.question_type == "likert" }}
+                            <div class="d-flex flex-wrap justify-content-between gap-2">
                                 {{ for option in question.options }}
-                                <div class="form-check {{ if question.question_type == "likert" }}text-center{{ endif }}">
+                                <div class="form-check text-center">
                                     <input class="form-check-input" type="radio" name="radio_{{question.question_id}}"
                                            value="{{option.value}}" id="{{question.question_id}}_{{option.value}}"
                                            {{ if question.is_required }}required{{ endif }}>
@@ -49,12 +50,22 @@
                                 </div>
                                 {{ endfor }}
                             </div>
-                            {{ if question.question_type == "likert" }}
                             <div class="d-flex justify-content-between text-muted small mt-1">
                                 <span>{{question.likert_min_label}}</span>
                                 <span>{{question.likert_max_label}}</span>
                             </div>
-                            {{ endif }}
+
+                            {{ else }}
+                            <div class="d-flex flex-column gap-2">
+                                {{ for option in question.options }}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="radio_{{question.question_id}}"
+                                           value="{{option.value}}" id="{{question.question_id}}_{{option.value}}"
+                                           {{ if question.is_required }}required{{ endif }}>
+                                    <label class="form-check-label" for="{{question.question_id}}_{{option.value}}">{{option.label}}</label>
+                                </div>
+                                {{ endfor }}
+                            </div>
                             {{ endif }}
                         </div>
                         {{ endfor }}

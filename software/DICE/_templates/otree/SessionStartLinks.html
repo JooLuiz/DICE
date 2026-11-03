@@ -1,0 +1,51 @@
+{% extends "otree/Session.html" %}
+
+{% block content %}
+  {{ super() }}
+
+  {% if use_browser_bots %}
+    <div class="alert alert-info" role="alert">
+      <p>Links will play automatically with browser bots.</p>
+    </div>
+  {% endif %}
+
+  {% if is_defined('room') %}
+    <div class="alert alert-info">
+      <p>
+        This session is associated with
+        <a style="text-decoration: underline" href="{% url 'RoomWithoutSession' room.name %}">
+          {{ room.display_name }}
+        </a>.
+      </p>
+      <p>
+        Permanent link:
+        <a href="{{ room_wide_url }}" target="_blank">{{ room_wide_url }}</a>
+      </p>
+    </div>
+
+    {% include "otree/includes/RoomParticipantLinks.html" %}
+  {% else %}
+    <h4>Persistent link</h4>
+    <p>
+      Create a room to obtain a permanent link that displays a Start page before assigning a
+      participant slot.
+    </p>
+    <p>
+      <a class="btn btn-primary"
+         href="{% url 'CreateDynamicRoom' %}?session_code={{ session.code }}">Create room</a>
+    </p>
+
+    <h4>Single-use links</h4>
+    <p>
+      Below are single-use links for this session. Each link has a unique participant code.
+    </p>
+    <table class="table">
+      {% for participant_url in participant_urls %}
+        <tr>
+          <td><strong>P{{ forloop.counter }}</strong></td>
+          <td><a href="{{ participant_url }}" class="participant-link" target="_blank">{{ participant_url }}</a></td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+{% endblock %}

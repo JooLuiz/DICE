@@ -11,7 +11,8 @@ session config. Changes versus the stock file:
    templating engine (ibis) only allows literal arguments in function calls -- it cannot call
    `config.editable_field_html(field_name)` with `field_name` as a loop variable.
 2. A labeled "Journey Steps" section is added for every config, with one block of inputs per
-   step slot (step_1_feed_csv_url, step_1_survey_link, step_1_questionnaire_json, step_2_...,
+   step slot (step_1_feed_csv_url, step_1_survey_link, step_1_questionnaire_json,
+   step_1_questionnaire_title, step_2_...,
    etc.) and a shared JSON example covering all four supported question types. Each step
    inherits that session's own channel_type (see session_config_steps.py).
 3. A "Language" dropdown (en / pt-br, the only two supported UI locales) replaces the generic
@@ -20,6 +21,30 @@ session config. Changes versus the stock file:
 See README.md's "Running a Real Study Without Editing Code" section for the researcher-facing
 explanation of this form.
 -->
+<style>
+  .session-field-help {
+    font-size: 0.85em;
+    font-weight: normal;
+    margin-top: 0.15rem;
+  }
+  .session-field-info {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    margin-left: 0.35rem;
+    padding: 0;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    background: transparent;
+    color: #6c757d;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: middle;
+  }
+</style>
 <form id="form">
   {% csrf_token %}
 
@@ -28,6 +53,9 @@ explanation of this form.
       {# the label and help_text are different for mturk #}
       {{ form.session_config.label }}
     </label>
+    <button type="button" class="session-field-info" data-bs-toggle="tooltip"
+            data-bs-title="{{ field_help.session_config }}"
+            aria-label="About this field">i</button>
     {{ form.session_config }}
   </div>
 
@@ -36,6 +64,9 @@ explanation of this form.
       {# the label and help_text are different for mturk #}
       {{ form.num_participants.label }}
     </label>
+    <button type="button" class="session-field-info" data-bs-toggle="tooltip"
+            data-bs-title="{{ field_help.num_participants }}"
+            aria-label="About this field">i</button>
     <div class="controls">
       {{ form.num_participants }}
       {% for config in configs %}
@@ -45,6 +76,14 @@ explanation of this form.
       {% endfor %}
       <p class="help-block">{{ form.num_participants.description }}</p>
     </div>
+  </div>
+
+  <div class="mb-3">
+    <label class="col-form-label" for="session-label">Label</label>
+    <button type="button" class="session-field-info" data-bs-toggle="tooltip"
+            data-bs-title="{{ field_help.label }}"
+            aria-label="About this field">i</button>
+    <input class="form-control" id="session-label" name="label" maxlength="200">
   </div>
 
   {% if form.is_mturk.object_data %}
@@ -98,6 +137,7 @@ explanation of this form.
 
           <div class="mb-3">
             <label class="col-form-label"><b>Language</b></label>
+            <div class="session-field-help">{{ field_help.language }}</div>
             <select class="form-select"
                     name="{{ config.html_field_name('language') }}">
               <option value="en" {% if config.language == 'en' %}selected{% endif %}>English (en)</option>
@@ -109,14 +149,11 @@ explanation of this form.
             <label class="col-form-label" for="{{ config.html_field_name('completion_redirect_url') }}">
               <b>Completion redirect link (optional)</b>
             </label>
+            <div class="session-field-help">{{ field_help.completion_redirect_url }}</div>
             <input type="text" class="form-control"
                    id="{{ config.html_field_name('completion_redirect_url') }}"
                    name="{{ config.html_field_name('completion_redirect_url') }}"
                    value="{{ config.completion_redirect_url }}">
-            <p class="help-block">
-              Shown as a button on the final debrief page, after the last step (e.g. your
-              Prolific completion link). Leave blank to just show a thank-you message instead.
-            </p>
           </div>
 
           {% include "otree/includes/JourneySteps.html" %}
@@ -159,6 +196,9 @@ explanation of this form.
         if (current_session_config) {
             showSessionConfigInfo(current_session_config);
         }
+        document.querySelectorAll('#form [data-bs-toggle="tooltip"]').forEach(function (infoButton) {
+            new bootstrap.Tooltip(infoButton);
+        });
 
         dropdown.change(function () {
             showSessionConfigInfo(dropdown.val());
